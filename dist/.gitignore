@@ -1,0 +1,12 @@
+# in tree build
+*.a
+*.o
+*.deb
+*.tgz
+*.tar
+*.tar.gz
+*.zip
+
+# colcon
+log/
+.vscode/
