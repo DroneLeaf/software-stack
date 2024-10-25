@@ -80,14 +80,14 @@ mv ../ros-noetic-*.deb ~/software-stack/dist/
 9. zip the HEER_Configuration folder and move it to the dist folder (should be converted to ros package)
 
 ```bash
-zip -r HEER_Configuration.zip HEER_Configuration
-mv HEER_Configuration.zip ~/software-stack/dist/
+ zip -r1 HEAR_Configurations.zip  HEAR_Configurations
+mv HEAR_Configurations.zip ~/software-stack/dist/
 ```
 
 10. zip the PX4-Autopilot folder and move it to the dist folder
 
 ```bash
-zip -r PX4-Autopilot.zip PX4-Autopilot
+zip -r1 PX4-Autopilot.zip PX4-Autopilot
 mv PX4-Autopilot.zip ~/software-stack/dist/
 ```
 
