@@ -8,68 +8,6 @@ This is a deployment-only repo where you can find all stable software stack rele
 
 **Note:** The version should be in the format of x.y.z where x is the major version, y is the minor version, and z is the patch version.
 
-install rapidjson system level
-install cpr system level
-
-CMakeLists changes for MC, FC (should be tested and committed to the respective repos)
-```cmake
-include(CheckIncludeFileCXX)
-
-...
-
-function(get_all_targets var)
-    set(targets)
-    get_all_targets_recursive(targets ${CMAKE_CURRENT_SOURCE_DIR}/Missions) # change the path to the directory where the targets are (e.g. Missions, HEAR_executables, ...)
-    get_all_targets_recursive(targets ${CMAKE_CURRENT_SOURCE_DIR}/HEAR_Blocks)
-    get_all_targets_recursive(targets ${CMAKE_CURRENT_SOURCE_DIR}/HEAR_Interfaces)
-    get_all_targets_recursive(targets ${CMAKE_CURRENT_SOURCE_DIR}/HEAR_Mission)
-    get_all_targets_recursive(targets ${CMAKE_CURRENT_SOURCE_DIR}/HEAR_Util)
-    set(${var} ${targets} PARENT_SCOPE)
-endfunction()
-
-macro(get_all_targets_recursive targets dir)
-    get_property(subdirectories DIRECTORY ${dir} PROPERTY SUBDIRECTORIES)
-    foreach(subdir ${subdirectories})
-        get_all_targets_recursive(${targets} ${subdir})
-    endforeach()
-
-    get_property(current_targets DIRECTORY ${dir} PROPERTY BUILDSYSTEM_TARGETS)
-    foreach(target ${current_targets})
-        get_target_property(target_type ${target} TYPE)
-        if(target_type STREQUAL "STATIC_LIBRARY" OR target_type STREQUAL "SHARED_LIBRARY"
-          OR target_type STREQUAL "EXECUTABLE" OR target_type STREQUAL "MODULE_LIBRARY"
-        )
-            list(APPEND ${targets} ${target})
-        endif()
-    endforeach()
-endmacro()
-
-get_all_targets(all_targets)
-list(REMOVE_DUPLICATES all_targets)
-message("All targets: ${all_targets}")
-
-install(DIRECTORY launch
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
-)
-
-install(FILES ${CMAKE_SOURCE_DIR}/../lib/linux-x64/libonnxruntime.so.1.15.1
-    DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-)
-
-install(TARGETS ${all_targets}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-)
-```
-Change the way of linking rapidjson and cpr in the CMakeLists.txt file in the FC and MC repos
-```cmake
-# target_link_libraries( ${PROJECT_NAME}  rapidjson)
-target_link_libraries( ${PROJECT_NAME}) # remove as it's system level installed now
-```
-
-
-
 **Note:** the following command should be done for Msgs, FC, MC
 
 3. 
