@@ -13,3 +13,10 @@
 [submodule "HEAR_Configurations"]
 	path = HEAR_Configurations
 	url = git@github.com:DroneLeaf/HEAR_Configurations.git
+[submodule "mavlink-router"]
+	path = mavlink-router
+	url = git@github.com:DroneLeaf/mavlink-router.git
+[submodule "LeafMC"]
+	path = LeafMC
+	url = git@github.com:DroneLeaf/LeafMC.git
+	branch = dev
