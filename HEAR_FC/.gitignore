@@ -1,0 +1,10 @@
+# ROS Noetic workspace
+build/
+devel/
+install/
+log/
+*.swp
+*.bak
+*.pyc
+.DS_Store
+.vscode/
