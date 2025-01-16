@@ -2,13 +2,13 @@
 	path = PX4-Autopilot
 	url = git@github.com:DroneLeaf/PX4-Autopilot.git
 [submodule "HEAR_Msgs"]
-	path = HEAR_Msgs/src/HEAR_Msgs
+	path = HEAR_Msgs
 	url = git@github.com:DroneLeaf/HEAR_Msgs.git
 [submodule "HEAR_FC"]
-	path = HEAR_FC/src/HEAR_FC
+	path = HEAR_FC
 	url = git@github.com:DroneLeaf/HEAR_FC.git
 [submodule "HEAR_MC"]
-	path = HEAR_MC/src/HEAR_MC
+	path = HEAR_MC
 	url = git@github.com:DroneLeaf/HEAR_MC.git
 [submodule "HEAR_Configurations"]
 	path = HEAR_Configurations
