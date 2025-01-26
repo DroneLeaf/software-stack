@@ -7,7 +7,9 @@
 **/*.tar
 **/*.tar.gz
 **/*.zip
-
+/build-LeafMC-Desktop-Debug/**
 # colcon
 log/
 .vscode/
+HEAR_FC/src/CMakeLists.txt
+HEAR_FC/.catkin_workspace
