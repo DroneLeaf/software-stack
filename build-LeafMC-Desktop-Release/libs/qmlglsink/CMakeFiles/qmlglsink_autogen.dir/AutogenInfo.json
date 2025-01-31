@@ -1,0 +1,195 @@
+{
+	"BUILD_DIR" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmlglsink/qmlglsink_autogen",
+	"CMAKE_BINARY_DIR" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release",
+	"CMAKE_CURRENT_BINARY_DIR" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmlglsink",
+	"CMAKE_CURRENT_SOURCE_DIR" : "/home/droneleaf/software-stack/LeafMC/libs/qmlglsink",
+	"CMAKE_EXECUTABLE" : "/opt/cmake-3.24.1/bin/cmake",
+	"CMAKE_LIST_FILES" : 
+	[
+		"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink/CMakeLists.txt",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/lib/cmake/Qt5Gui/Qt5GuiConfigVersion.cmake",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/lib/cmake/Qt5Gui/Qt5GuiConfig.cmake",
+		"/opt/cmake-3.24.1/share/cmake-3.24/Modules/FindOpenGL.cmake",
+		"/opt/cmake-3.24.1/share/cmake-3.24/Modules/FindPackageHandleStandardArgs.cmake",
+		"/opt/cmake-3.24.1/share/cmake-3.24/Modules/FindPackageMessage.cmake",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/lib/cmake/Qt5/Qt5ConfigVersion.cmake",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/lib/cmake/Qt5/Qt5Config.cmake",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/lib/cmake/Qt5/Qt5ModuleLocation.cmake",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/lib/cmake/Qt5X11Extras/Qt5X11ExtrasConfigVersion.cmake",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/lib/cmake/Qt5X11Extras/Qt5X11ExtrasConfig.cmake"
+	],
+	"CMAKE_SOURCE_DIR" : "/home/droneleaf/software-stack/LeafMC",
+	"DEP_FILE" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmlglsink/qmlglsink_autogen/deps",
+	"DEP_FILE_RULE_NAME" : "qmlglsink_autogen/timestamp",
+	"HEADERS" : 
+	[
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink/gst-plugins-good/ext/qt/gstqsgtexture.h",
+			"MU",
+			"XXHWLRQZYA/moc_gstqsgtexture.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink/gst-plugins-good/ext/qt/gstqtgl.h",
+			"MU",
+			"XXHWLRQZYA/moc_gstqtgl.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink/gst-plugins-good/ext/qt/gstqtglutility.h",
+			"MU",
+			"XXHWLRQZYA/moc_gstqtglutility.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink/gst-plugins-good/ext/qt/gstqtsink.h",
+			"MU",
+			"XXHWLRQZYA/moc_gstqtsink.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink/gst-plugins-good/ext/qt/gstqtsrc.h",
+			"MU",
+			"XXHWLRQZYA/moc_gstqtsrc.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink/gst-plugins-good/ext/qt/qtitem.h",
+			"MU",
+			"XXHWLRQZYA/moc_qtitem.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink/gst-plugins-good/ext/qt/qtwindow.h",
+			"MU",
+			"XXHWLRQZYA/moc_qtwindow.cpp",
+			null
+		]
+	],
+	"HEADER_EXTENSIONS" : [ "h", "hh", "h++", "hm", "hpp", "hxx", "in", "txx" ],
+	"INCLUDE_DIR" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmlglsink/qmlglsink_autogen/include",
+	"MOC_COMPILATION_FILE" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmlglsink/qmlglsink_autogen/mocs_compilation.cpp",
+	"MOC_DEFINITIONS" : 
+	[
+		"HAVE_QT_EGLFS",
+		"HAVE_QT_WAYLAND",
+		"HAVE_QT_X11",
+		"QGC_APPLICATION_NAME=\"QGroundControl\"",
+		"QGC_GST_STREAMING",
+		"QGC_ORG_DOMAIN=\"org.qgroundcontrol\"",
+		"QGC_ORG_NAME=\"QGroundControl.org\"",
+		"QT_CORE_LIB",
+		"QT_GUI_LIB",
+		"QT_NO_DEBUG",
+		"QT_OPENGL_LIB",
+		"QT_WIDGETS_LIB",
+		"QT_X11EXTRAS_LIB"
+	],
+	"MOC_DEPEND_FILTERS" : 
+	[
+		[
+			"Q_PLUGIN_METADATA",
+			"[\n][ \t]*Q_PLUGIN_METADATA[ \t]*\\([^\\)]*FILE[ \t]*\"([^\"]+)\""
+		]
+	],
+	"MOC_INCLUDES" : 
+	[
+		"/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmlglsink",
+		"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink",
+		"/home/droneleaf/software-stack/LeafMC/libs/eigen",
+		"/home/droneleaf/software-stack/LeafMC/libs/libevents",
+		"/home/droneleaf/software-stack/LeafMC/libs/mavlink/include/mavlink/v2.0",
+		"/home/droneleaf/software-stack/LeafMC/libs/mavlink/include/mavlink/v2.0/all",
+		"/home/droneleaf/software-stack/LeafMC/libs/mavlink/include/mavlink/v2.0/common",
+		"/home/droneleaf/software-stack/LeafMC/libs/shapelib",
+		"/usr/include/gstreamer-1.0",
+		"/usr/lib/x86_64-linux-gnu/gstreamer-1.0/include",
+		"/usr/include/libdrm",
+		"/usr/include/orc-0.4",
+		"/usr/include/glib-2.0",
+		"/usr/lib/x86_64-linux-gnu/glib-2.0/include",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/include",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/include/QtX11Extras",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/include/QtGui",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/include/QtCore",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/mkspecs/linux-g++",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/include/QtOpenGL",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/include/QtWidgets",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/include/QtGui/5.15.2",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/include/QtGui/5.15.2/QtGui",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/include/QtCore/5.15.2",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/include/QtCore/5.15.2/QtCore",
+		"/usr/include",
+		"/usr/include/c++/9",
+		"/usr/include/x86_64-linux-gnu/c++/9",
+		"/usr/include/c++/9/backward",
+		"/usr/lib/gcc/x86_64-linux-gnu/9/include",
+		"/usr/local/include",
+		"/usr/include/x86_64-linux-gnu"
+	],
+	"MOC_MACRO_NAMES" : [ "Q_OBJECT", "Q_GADGET", "Q_NAMESPACE", "Q_NAMESPACE_EXPORT" ],
+	"MOC_OPTIONS" : [],
+	"MOC_PATH_PREFIX" : false,
+	"MOC_PREDEFS_CMD" : 
+	[
+		"/usr/bin/g++",
+		"-dM",
+		"-E",
+		"-c",
+		"/opt/cmake-3.24.1/share/cmake-3.24/Modules/CMakeCXXCompilerABI.cpp"
+	],
+	"MOC_PREDEFS_FILE" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmlglsink/qmlglsink_autogen/moc_predefs.h",
+	"MOC_RELAXED_MODE" : false,
+	"MOC_SKIP" : [],
+	"MULTI_CONFIG" : false,
+	"PARALLEL" : 6,
+	"PARSE_CACHE_FILE" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmlglsink/CMakeFiles/qmlglsink_autogen.dir/ParseCache.txt",
+	"QT_MOC_EXECUTABLE" : "/home/droneleaf/Qt/5.15.2/gcc_64/bin/moc",
+	"QT_UIC_EXECUTABLE" : "/home/droneleaf/Qt/5.15.2/gcc_64/bin/uic",
+	"QT_VERSION_MAJOR" : 5,
+	"QT_VERSION_MINOR" : 15,
+	"SETTINGS_FILE" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmlglsink/CMakeFiles/qmlglsink_autogen.dir/AutogenUsed.txt",
+	"SOURCES" : 
+	[
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink/gst-plugins-good/ext/qt/gstplugin.cc",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink/gst-plugins-good/ext/qt/gstqsgtexture.cc",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink/gst-plugins-good/ext/qt/gstqtglutility.cc",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink/gst-plugins-good/ext/qt/gstqtsink.cc",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink/gst-plugins-good/ext/qt/gstqtsrc.cc",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink/gst-plugins-good/ext/qt/qtitem.cc",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmlglsink/gst-plugins-good/ext/qt/qtwindow.cc",
+			"MU",
+			null
+		]
+	],
+	"UIC_OPTIONS" : [],
+	"UIC_SEARCH_PATHS" : [],
+	"UIC_SKIP" : [],
+	"UIC_UI_FILES" : [],
+	"VERBOSITY" : 0
+}

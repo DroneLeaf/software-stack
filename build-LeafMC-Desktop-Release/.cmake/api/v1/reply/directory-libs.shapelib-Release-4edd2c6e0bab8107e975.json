@@ -1,0 +1,235 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"install"
+		],
+		"files" : 
+		[
+			"libs/shapelib/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 91,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 149,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 223,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 227,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 230,
+				"parent" : 0
+			}
+		]
+	},
+	"installers" : 
+	[
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "share/shapelib",
+			"exportName" : "targets",
+			"exportTargets" : 
+			[
+				{
+					"id" : "shp::@ff6c085141bc4b6865c7",
+					"index" : 134
+				},
+				{
+					"id" : "shpcreate::@ff6c085141bc4b6865c7",
+					"index" : 140
+				},
+				{
+					"id" : "shpadd::@ff6c085141bc4b6865c7",
+					"index" : 137
+				},
+				{
+					"id" : "shpdump::@ff6c085141bc4b6865c7",
+					"index" : 143
+				},
+				{
+					"id" : "shprewind::@ff6c085141bc4b6865c7",
+					"index" : 146
+				},
+				{
+					"id" : "dbfcreate::@ff6c085141bc4b6865c7",
+					"index" : 107
+				},
+				{
+					"id" : "dbfadd::@ff6c085141bc4b6865c7",
+					"index" : 104
+				},
+				{
+					"id" : "dbfdump::@ff6c085141bc4b6865c7",
+					"index" : 110
+				},
+				{
+					"id" : "shptreedump::@ff6c085141bc4b6865c7",
+					"index" : 152
+				}
+			],
+			"paths" : 
+			[
+				"libs/shapelib/CMakeFiles/Export/29ecd9b25fd2c0a895e02acd8b69bda5/shapelib-targets.cmake"
+			],
+			"type" : "export"
+		},
+		{
+			"backtrace" : 2,
+			"component" : "Unspecified",
+			"destination" : "lib",
+			"paths" : 
+			[
+				"libs/shapelib/libshp.a"
+			],
+			"targetId" : "shp::@ff6c085141bc4b6865c7",
+			"targetIndex" : 134,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 3,
+			"component" : "Unspecified",
+			"destination" : "bin",
+			"paths" : 
+			[
+				"libs/shapelib/shpcreate"
+			],
+			"targetId" : "shpcreate::@ff6c085141bc4b6865c7",
+			"targetIndex" : 140,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 3,
+			"component" : "Unspecified",
+			"destination" : "bin",
+			"paths" : 
+			[
+				"libs/shapelib/shpadd"
+			],
+			"targetId" : "shpadd::@ff6c085141bc4b6865c7",
+			"targetIndex" : 137,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 3,
+			"component" : "Unspecified",
+			"destination" : "bin",
+			"paths" : 
+			[
+				"libs/shapelib/shpdump"
+			],
+			"targetId" : "shpdump::@ff6c085141bc4b6865c7",
+			"targetIndex" : 143,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 3,
+			"component" : "Unspecified",
+			"destination" : "bin",
+			"paths" : 
+			[
+				"libs/shapelib/shprewind"
+			],
+			"targetId" : "shprewind::@ff6c085141bc4b6865c7",
+			"targetIndex" : 146,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 3,
+			"component" : "Unspecified",
+			"destination" : "bin",
+			"paths" : 
+			[
+				"libs/shapelib/dbfcreate"
+			],
+			"targetId" : "dbfcreate::@ff6c085141bc4b6865c7",
+			"targetIndex" : 107,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 3,
+			"component" : "Unspecified",
+			"destination" : "bin",
+			"paths" : 
+			[
+				"libs/shapelib/dbfadd"
+			],
+			"targetId" : "dbfadd::@ff6c085141bc4b6865c7",
+			"targetIndex" : 104,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 3,
+			"component" : "Unspecified",
+			"destination" : "bin",
+			"paths" : 
+			[
+				"libs/shapelib/dbfdump"
+			],
+			"targetId" : "dbfdump::@ff6c085141bc4b6865c7",
+			"targetIndex" : 110,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 3,
+			"component" : "Unspecified",
+			"destination" : "bin",
+			"paths" : 
+			[
+				"libs/shapelib/shptreedump"
+			],
+			"targetId" : "shptreedump::@ff6c085141bc4b6865c7",
+			"targetIndex" : 152,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 4,
+			"component" : "Unspecified",
+			"destination" : "include",
+			"paths" : 
+			[
+				"libs/shapelib/shapefil.h"
+			],
+			"type" : "file"
+		},
+		{
+			"backtrace" : 5,
+			"component" : "Unspecified",
+			"destination" : "include/shapelib",
+			"paths" : 
+			[
+				"libs/shapelib/shapefil.h"
+			],
+			"type" : "file"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "libs/shapelib",
+		"source" : "libs/shapelib"
+	}
+}

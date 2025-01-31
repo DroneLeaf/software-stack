@@ -1,0 +1,65 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"install"
+		],
+		"files" : 
+		[
+			"libs/shapelib/cmake/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 32,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 36,
+				"parent" : 0
+			}
+		]
+	},
+	"installers" : 
+	[
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "share/shapelib",
+			"paths" : 
+			[
+				{
+					"from" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/shapelib/cmake/project-config.cmake",
+					"to" : "shapelib-config.cmake"
+				}
+			],
+			"type" : "file"
+		},
+		{
+			"backtrace" : 2,
+			"component" : "Unspecified",
+			"destination" : "share/shapelib",
+			"paths" : 
+			[
+				{
+					"from" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/shapelib/cmake/project-config-version.cmake",
+					"to" : "shapelib-config-version.cmake"
+				}
+			],
+			"type" : "file"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "libs/shapelib/cmake",
+		"source" : "libs/shapelib/cmake"
+	}
+}
