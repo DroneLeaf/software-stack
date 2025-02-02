@@ -13,3 +13,5 @@ log/
 .vscode/
 HEAR_FC/src/CMakeLists.txt
 HEAR_FC/.catkin_workspace
+build-LeafMC-Desktop-Debug/**
+build-LeafMC-Desktop-Release/**
