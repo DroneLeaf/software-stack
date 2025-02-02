@@ -1,0 +1,71 @@
+{
+	"backtrace" : 0,
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : 
+		[
+			"src/GPS/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			}
+		]
+	},
+	"dependencies" : 
+	[
+		{
+			"id" : "gps_autogen_timestamp_deps::@74f4afaa1e098026b442"
+		}
+	],
+	"id" : "gps_autogen::@74f4afaa1e098026b442",
+	"isGeneratorProvided" : true,
+	"name" : "gps_autogen",
+	"paths" : 
+	{
+		"build" : "src/GPS",
+		"source" : "src/GPS"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		},
+		{
+			"name" : "CMake Rules",
+			"sourceIndexes" : 
+			[
+				1,
+				2
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/GPS/CMakeFiles/gps_autogen",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/GPS/CMakeFiles/gps_autogen.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/GPS/gps_autogen/timestamp.rule",
+			"sourceGroupIndex" : 1
+		}
+	],
+	"type" : "UTILITY"
+}

@@ -1,0 +1,118 @@
+{
+	"backtrace" : 1,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_custom_target"
+		],
+		"files" : 
+		[
+			"src/FactSystem/FactControls/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 5,
+				"parent" : 0
+			}
+		]
+	},
+	"id" : "FactControlsQml::@bd51febec3e3005f0d32",
+	"name" : "FactControlsQml",
+	"paths" : 
+	{
+		"build" : "src/FactSystem/FactControls",
+		"source" : "src/FactSystem/FactControls"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Header Files",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		},
+		{
+			"name" : "",
+			"sourceIndexes" : 
+			[
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				9,
+				10
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 1,
+			"path" : "src/FactSystem/FactControls/FactPanelController.h",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"path" : "src/FactSystem/FactControls/AltitudeFactTextField.qml",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 1,
+			"path" : "src/FactSystem/FactControls/FactBitmask.qml",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 1,
+			"path" : "src/FactSystem/FactControls/FactCheckBox.qml",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 1,
+			"path" : "src/FactSystem/FactControls/FactComboBox.qml",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 1,
+			"path" : "src/FactSystem/FactControls/FactLabel.qml",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 1,
+			"path" : "src/FactSystem/FactControls/FactTextFieldGrid.qml",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 1,
+			"path" : "src/FactSystem/FactControls/FactTextField.qml",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 1,
+			"path" : "src/FactSystem/FactControls/FactTextFieldRow.qml",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 1,
+			"path" : "src/FactSystem/FactControls/FactTextFieldSlider.qml",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 1,
+			"path" : "src/FactSystem/FactControls/FactValueSlider.qml",
+			"sourceGroupIndex" : 1
+		}
+	],
+	"type" : "UTILITY"
+}

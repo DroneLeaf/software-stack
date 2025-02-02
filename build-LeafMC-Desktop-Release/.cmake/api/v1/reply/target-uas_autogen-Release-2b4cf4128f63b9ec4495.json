@@ -1,0 +1,71 @@
+{
+	"backtrace" : 0,
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : 
+		[
+			"src/uas/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			}
+		]
+	},
+	"dependencies" : 
+	[
+		{
+			"id" : "uas_autogen_timestamp_deps::@6da1e3c54276e1f8fc1a"
+		}
+	],
+	"id" : "uas_autogen::@6da1e3c54276e1f8fc1a",
+	"isGeneratorProvided" : true,
+	"name" : "uas_autogen",
+	"paths" : 
+	{
+		"build" : "src/uas",
+		"source" : "src/uas"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		},
+		{
+			"name" : "CMake Rules",
+			"sourceIndexes" : 
+			[
+				1,
+				2
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/uas/CMakeFiles/uas_autogen",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/uas/CMakeFiles/uas_autogen.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/uas/uas_autogen/timestamp.rule",
+			"sourceGroupIndex" : 1
+		}
+	],
+	"type" : "UTILITY"
+}

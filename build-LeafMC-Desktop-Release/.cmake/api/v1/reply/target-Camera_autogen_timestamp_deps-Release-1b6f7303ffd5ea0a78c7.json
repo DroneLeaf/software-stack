@@ -1,0 +1,58 @@
+{
+	"backtrace" : 0,
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : 
+		[
+			"src/Camera/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			}
+		]
+	},
+	"id" : "Camera_autogen_timestamp_deps::@74b335c20fd4345076d7",
+	"isGeneratorProvided" : true,
+	"name" : "Camera_autogen_timestamp_deps",
+	"paths" : 
+	{
+		"build" : "src/Camera",
+		"source" : "src/Camera"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		},
+		{
+			"name" : "CMake Rules",
+			"sourceIndexes" : 
+			[
+				1
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/Camera/CMakeFiles/Camera_autogen_timestamp_deps",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/Camera/CMakeFiles/Camera_autogen_timestamp_deps.rule",
+			"sourceGroupIndex" : 1
+		}
+	],
+	"type" : "UTILITY"
+}

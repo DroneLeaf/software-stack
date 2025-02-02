@@ -1,0 +1,82 @@
+{
+	"backtrace" : 1,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_custom_target"
+		],
+		"files" : 
+		[
+			"src/AutoPilotPlugins/Common/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 1,
+				"parent" : 0
+			}
+		]
+	},
+	"id" : "CommonAutoPilotPluginQml::@9f72fd3d9228751d409a",
+	"name" : "CommonAutoPilotPluginQml",
+	"paths" : 
+	{
+		"build" : "src/AutoPilotPlugins/Common",
+		"source" : "src/AutoPilotPlugins/Common"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "",
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3,
+				4,
+				5
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 1,
+			"path" : "src/AutoPilotPlugins/Common/ESP8266Component.qml",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"path" : "src/AutoPilotPlugins/Common/ESP8266ComponentSummary.qml",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"path" : "src/AutoPilotPlugins/Common/MotorComponent.qml",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"path" : "src/AutoPilotPlugins/Common/RadioComponent.qml",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"path" : "src/AutoPilotPlugins/Common/SetupPage.qml",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"path" : "src/AutoPilotPlugins/Common/SyslinkComponent.qml",
+			"sourceGroupIndex" : 0
+		}
+	],
+	"type" : "UTILITY"
+}

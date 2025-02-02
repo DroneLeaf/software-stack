@@ -1,0 +1,71 @@
+{
+	"backtrace" : 0,
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : 
+		[
+			"src/VideoReceiver/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			}
+		]
+	},
+	"dependencies" : 
+	[
+		{
+			"id" : "VideoReceiver_autogen_timestamp_deps::@f0159afbb18d3920e026"
+		}
+	],
+	"id" : "VideoReceiver_autogen::@f0159afbb18d3920e026",
+	"isGeneratorProvided" : true,
+	"name" : "VideoReceiver_autogen",
+	"paths" : 
+	{
+		"build" : "src/VideoReceiver",
+		"source" : "src/VideoReceiver"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		},
+		{
+			"name" : "CMake Rules",
+			"sourceIndexes" : 
+			[
+				1,
+				2
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/VideoReceiver/CMakeFiles/VideoReceiver_autogen",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/VideoReceiver/CMakeFiles/VideoReceiver_autogen.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/VideoReceiver/VideoReceiver_autogen/timestamp.rule",
+			"sourceGroupIndex" : 1
+		}
+	],
+	"type" : "UTILITY"
+}

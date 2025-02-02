@@ -1,0 +1,1178 @@
+{
+	"archive" : {},
+	"artifacts" : 
+	[
+		{
+			"path" : "src/SiYi/libSiYi.a"
+		}
+	],
+	"backtrace" : 1,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_library",
+			"target_link_libraries",
+			"add_compile_options",
+			"include",
+			"add_definitions",
+			"include_directories"
+		],
+		"files" : 
+		[
+			"src/SiYi/CMakeLists.txt",
+			"src/CMakeLists.txt",
+			"libs/libevents/CMakeLists.txt",
+			"src/MissionManager/CMakeLists.txt",
+			"src/ui/CMakeLists.txt",
+			"src/ADSB/CMakeLists.txt",
+			"src/AnalyzeView/CMakeLists.txt",
+			"src/api/CMakeLists.txt",
+			"src/Audio/CMakeLists.txt",
+			"src/AutoPilotPlugins/CMakeLists.txt",
+			"src/Camera/CMakeLists.txt",
+			"src/comm/CMakeLists.txt",
+			"src/Compression/CMakeLists.txt",
+			"src/FactSystem/CMakeLists.txt",
+			"src/FactSystem/FactControls/CMakeLists.txt",
+			"src/FirmwarePlugin/CMakeLists.txt",
+			"src/FlightMap/CMakeLists.txt",
+			"src/FollowMe/CMakeLists.txt",
+			"src/Geo/CMakeLists.txt",
+			"src/Gimbal/CMakeLists.txt",
+			"src/GPS/CMakeLists.txt",
+			"src/Joystick/CMakeLists.txt",
+			"src/PositionManager/CMakeLists.txt",
+			"src/QmlControls/CMakeLists.txt",
+			"src/QtLocationPlugin/CMakeLists.txt",
+			"src/Settings/CMakeLists.txt",
+			"src/Terrain/CMakeLists.txt",
+			"src/uas/CMakeLists.txt",
+			"src/Vehicle/CMakeLists.txt",
+			"src/Vehicle/Actuators/CMakeLists.txt",
+			"src/VehicleSetup/CMakeLists.txt",
+			"src/VideoManager/CMakeLists.txt",
+			"src/VideoReceiver/CMakeLists.txt",
+			"CMakeLists.txt",
+			"cmake/CompileOptions.cmake"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 1,
+				"parent" : 0
+			},
+			{
+				"command" : 1,
+				"file" : 0,
+				"line" : 9,
+				"parent" : 0
+			},
+			{
+				"file" : 1
+			},
+			{
+				"file" : 2
+			},
+			{
+				"file" : 3
+			},
+			{
+				"file" : 4
+			},
+			{
+				"file" : 5
+			},
+			{
+				"file" : 6
+			},
+			{
+				"file" : 7
+			},
+			{
+				"file" : 8
+			},
+			{
+				"file" : 9
+			},
+			{
+				"file" : 10
+			},
+			{
+				"file" : 11
+			},
+			{
+				"file" : 12
+			},
+			{
+				"file" : 13
+			},
+			{
+				"file" : 14
+			},
+			{
+				"file" : 15
+			},
+			{
+				"file" : 16
+			},
+			{
+				"file" : 17
+			},
+			{
+				"file" : 18
+			},
+			{
+				"file" : 19
+			},
+			{
+				"file" : 20
+			},
+			{
+				"file" : 21
+			},
+			{
+				"file" : 22
+			},
+			{
+				"file" : 23
+			},
+			{
+				"file" : 24
+			},
+			{
+				"file" : 25
+			},
+			{
+				"file" : 26
+			},
+			{
+				"file" : 27
+			},
+			{
+				"file" : 28
+			},
+			{
+				"file" : 29
+			},
+			{
+				"file" : 30
+			},
+			{
+				"file" : 31
+			},
+			{
+				"file" : 32
+			},
+			{
+				"file" : 33
+			},
+			{
+				"command" : 2,
+				"file" : 33,
+				"line" : 18,
+				"parent" : 35
+			},
+			{
+				"command" : 3,
+				"file" : 33,
+				"line" : 158,
+				"parent" : 35
+			},
+			{
+				"file" : 34,
+				"parent" : 37
+			},
+			{
+				"command" : 2,
+				"file" : 34,
+				"line" : 23,
+				"parent" : 38
+			},
+			{
+				"command" : 4,
+				"file" : 33,
+				"line" : 41,
+				"parent" : 35
+			},
+			{
+				"command" : 4,
+				"file" : 33,
+				"line" : 107,
+				"parent" : 35
+			},
+			{
+				"command" : 5,
+				"file" : 33,
+				"line" : 160,
+				"parent" : 35
+			},
+			{
+				"command" : 5,
+				"file" : 1,
+				"line" : 2,
+				"parent" : 3
+			}
+		]
+	},
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "-O3 -DNDEBUG"
+				},
+				{
+					"backtrace" : 36,
+					"fragment" : "-Wall"
+				},
+				{
+					"backtrace" : 36,
+					"fragment" : "-Wextra"
+				},
+				{
+					"backtrace" : 39,
+					"fragment" : "-fdiagnostics-color=always"
+				},
+				{
+					"backtrace" : 2,
+					"fragment" : "-fPIC"
+				},
+				{
+					"fragment" : "-std=gnu++17"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 2,
+					"define" : "HAVE_QT_EGLFS"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "HAVE_QT_WAYLAND"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "HAVE_QT_X11"
+				},
+				{
+					"backtrace" : 40,
+					"define" : "QGC_APPLICATION_NAME=\"QGroundControl\""
+				},
+				{
+					"backtrace" : 41,
+					"define" : "QGC_GST_STREAMING"
+				},
+				{
+					"backtrace" : 40,
+					"define" : "QGC_ORG_DOMAIN=\"org.qgroundcontrol\""
+				},
+				{
+					"backtrace" : 40,
+					"define" : "QGC_ORG_NAME=\"QGroundControl.org\""
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_CHARTS_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_CONCURRENT_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_CORE_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_GUI_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_LOCATION_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_MULTIMEDIA_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_NETWORK_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_NO_DEBUG"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_OPENGL_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_POSITIONINGQUICK_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_POSITIONING_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_QMLMODELS_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_QML_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_QUICKWIDGETS_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_QUICK_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_SERIALPORT_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_SQL_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_SVG_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_TESTCASE_BUILDDIR=\"/home/droneleaf/software-stack/build-LeafMC-Desktop-Release\""
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_TESTLIB_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_TEXTTOSPEECH_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_WIDGETS_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_X11EXTRAS_LIB"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "QT_XML_LIB"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/SiYi"
+				},
+				{
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/SiYi"
+				},
+				{
+					"backtrace" : 0,
+					"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/SiYi/SiYi_autogen/include"
+				},
+				{
+					"backtrace" : 42,
+					"path" : "/home/droneleaf/software-stack/LeafMC/libs/eigen"
+				},
+				{
+					"backtrace" : 42,
+					"path" : "/home/droneleaf/software-stack/LeafMC/libs/libevents"
+				},
+				{
+					"backtrace" : 42,
+					"path" : "/home/droneleaf/software-stack/LeafMC/libs/mavlink/include/mavlink/v2.0"
+				},
+				{
+					"backtrace" : 42,
+					"path" : "/home/droneleaf/software-stack/LeafMC/libs/mavlink/include/mavlink/v2.0/all"
+				},
+				{
+					"backtrace" : 42,
+					"path" : "/home/droneleaf/software-stack/LeafMC/libs/mavlink/include/mavlink/v2.0/common"
+				},
+				{
+					"backtrace" : 42,
+					"path" : "/home/droneleaf/software-stack/LeafMC/libs/shapelib"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtLocation/5.15.2"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtLocation/5.15.2/QtLocation"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtPositioningQuick/5.15.2"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtPositioningQuick/5.15.2/QtPositioningQuick"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtPositioning/5.15.2"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtPositioning/5.15.2/QtPositioning"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtQuick/5.15.2"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtQuick/5.15.2/QtQuick"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtQmlModels/5.15.2"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtQmlModels/5.15.2/QtQmlModels"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtQml/5.15.2"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtQml/5.15.2/QtQml"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtNetwork/5.15.2"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtNetwork/5.15.2/QtNetwork"
+				},
+				{
+					"backtrace" : 43,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/VideoManager"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/ui/ui_autogen/include"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/ui/ui_autogen/include_Debug"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/qgc_autogen/include"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/qgc_autogen/include_Debug"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/ADSB"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/AnalyzeView"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/api"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/Audio"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/AutoPilotPlugins"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/AutoPilotPlugins/APM"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/AutoPilotPlugins/Common"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/AutoPilotPlugins/PX4"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/Camera"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/comm"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmdnsengine/src"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/Compression"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/FactSystem"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/FactSystem/FactControls"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/FirmwarePlugin"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/FirmwarePlugin/APM"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/FlightMap"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/FlightMap/Widgets"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/FollowMe"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/Geo"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/Gimbal"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/GPS"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/Joystick"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/ui"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/ui"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/MissionManager"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/PositionManager"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/QmlControls"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/QtLocationPlugin"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/QtLocationPlugin/QMLControl"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/Settings"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/Terrain"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/uas"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/Vehicle"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/VehicleSetup"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/home/droneleaf/software-stack/LeafMC/src/VideoReceiver"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/usr/include/gstreamer-1.0"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/usr/lib/x86_64-linux-gnu/gstreamer-1.0/include"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/usr/include/libdrm"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/usr/include/orc-0.4"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/usr/include/glib-2.0"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/usr/lib/x86_64-linux-gnu/glib-2.0/include"
+				},
+				{
+					"backtrace" : 43,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtCore/5.15.2"
+				},
+				{
+					"backtrace" : 43,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtCore/5.15.2/QtCore"
+				},
+				{
+					"backtrace" : 43,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtGui/5.15.2"
+				},
+				{
+					"backtrace" : 43,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtGui/5.15.2/QtGui"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtCore"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/./mkspecs/linux-g++"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtQuickWidgets"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtQuick"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtQmlModels"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtQml"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtNetwork"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtGui"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtWidgets"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtCharts"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtLocation"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtPositioningQuick"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtPositioning"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtSerialPort"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtTextToSpeech"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtTest"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtSvg"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtXml"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtConcurrent"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtSql"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtMultimedia"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtOpenGL"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/home/droneleaf/Qt/5.15.2/gcc_64/include/QtX11Extras"
+				}
+			],
+			"language" : "CXX",
+			"languageStandard" : 
+			{
+				"backtraces" : 
+				[
+					2
+				],
+				"standard" : "17"
+			},
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3,
+				4,
+				5
+			]
+		}
+	],
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 2,
+			"id" : "libevents_generated::@63ad8548b5335eb1a15b"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "shp::@ff6c085141bc4b6865c7"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "qmlglsink::@d206db8604fa03f95000"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "qmdnsengine::@62d57bfa5434cdc1cf90"
+		},
+		{
+			"backtrace" : 3,
+			"id" : "qgc_autogen::@145eef247bfb46b6828c"
+		},
+		{
+			"id" : "libevents_parser_autogen_timestamp_deps::@63ad8548b5335eb1a15b"
+		},
+		{
+			"backtrace" : 4,
+			"id" : "libevents_parser_autogen::@63ad8548b5335eb1a15b"
+		},
+		{
+			"id" : "libevents_health_and_arming_checks_autogen_timestamp_deps::@63ad8548b5335eb1a15b"
+		},
+		{
+			"backtrace" : 4,
+			"id" : "libevents_health_and_arming_checks_autogen::@63ad8548b5335eb1a15b"
+		},
+		{
+			"backtrace" : 5,
+			"id" : "MissionManager_autogen::@e12eb56e7750c53eb58f"
+		},
+		{
+			"id" : "qgc_autogen_timestamp_deps::@145eef247bfb46b6828c"
+		},
+		{
+			"id" : "ui_autogen_timestamp_deps::@e0ce1d6ecae3dc67b834"
+		},
+		{
+			"backtrace" : 6,
+			"id" : "ui_autogen::@e0ce1d6ecae3dc67b834"
+		},
+		{
+			"backtrace" : 7,
+			"id" : "ADSB_autogen::@4bf27f97029ab5cf12e8"
+		},
+		{
+			"id" : "ADSB_autogen_timestamp_deps::@4bf27f97029ab5cf12e8"
+		},
+		{
+			"id" : "AnalyzeView_autogen_timestamp_deps::@1f9110b7e94afc09a3ad"
+		},
+		{
+			"backtrace" : 8,
+			"id" : "AnalyzeView_autogen::@1f9110b7e94afc09a3ad"
+		},
+		{
+			"backtrace" : 9,
+			"id" : "api_autogen::@f0e24b7f04f99860965c"
+		},
+		{
+			"id" : "api_autogen_timestamp_deps::@f0e24b7f04f99860965c"
+		},
+		{
+			"backtrace" : 10,
+			"id" : "Audio_autogen::@ba36979b91b0d976b628"
+		},
+		{
+			"id" : "Audio_autogen_timestamp_deps::@ba36979b91b0d976b628"
+		},
+		{
+			"id" : "AutoPilotPlugins_autogen_timestamp_deps::@abc3cc4f8090cb8b75c6"
+		},
+		{
+			"backtrace" : 11,
+			"id" : "AutoPilotPlugins_autogen::@abc3cc4f8090cb8b75c6"
+		},
+		{
+			"id" : "Camera_autogen_timestamp_deps::@74b335c20fd4345076d7"
+		},
+		{
+			"backtrace" : 12,
+			"id" : "Camera_autogen::@74b335c20fd4345076d7"
+		},
+		{
+			"id" : "comm_autogen_timestamp_deps::@9b7f296b86aef5ecd1dc"
+		},
+		{
+			"backtrace" : 13,
+			"id" : "comm_autogen::@9b7f296b86aef5ecd1dc"
+		},
+		{
+			"id" : "compression_autogen_timestamp_deps::@090e032996f44152490d"
+		},
+		{
+			"backtrace" : 14,
+			"id" : "compression_autogen::@090e032996f44152490d"
+		},
+		{
+			"backtrace" : 15,
+			"id" : "FactSystem_autogen::@8f9ad51fb5b6161937c0"
+		},
+		{
+			"id" : "FactSystem_autogen_timestamp_deps::@8f9ad51fb5b6161937c0"
+		},
+		{
+			"backtrace" : 16,
+			"id" : "FactControls_autogen::@bd51febec3e3005f0d32"
+		},
+		{
+			"id" : "FactControls_autogen_timestamp_deps::@bd51febec3e3005f0d32"
+		},
+		{
+			"id" : "FirmwarePlugin_autogen_timestamp_deps::@5898138174a1f9bc081f"
+		},
+		{
+			"backtrace" : 17,
+			"id" : "FirmwarePlugin_autogen::@5898138174a1f9bc081f"
+		},
+		{
+			"id" : "FlightMap_autogen_timestamp_deps::@0444486f063b4153bb58"
+		},
+		{
+			"backtrace" : 18,
+			"id" : "FlightMap_autogen::@0444486f063b4153bb58"
+		},
+		{
+			"id" : "FollowMe_autogen_timestamp_deps::@2395f5deb0f6af44d8eb"
+		},
+		{
+			"backtrace" : 19,
+			"id" : "FollowMe_autogen::@2395f5deb0f6af44d8eb"
+		},
+		{
+			"id" : "Geo_autogen_timestamp_deps::@dd13c933d3cde356fde1"
+		},
+		{
+			"backtrace" : 20,
+			"id" : "Geo_autogen::@dd13c933d3cde356fde1"
+		},
+		{
+			"id" : "Gimbal_autogen_timestamp_deps::@b9b069b1e477bb2d4b8e"
+		},
+		{
+			"backtrace" : 21,
+			"id" : "Gimbal_autogen::@b9b069b1e477bb2d4b8e"
+		},
+		{
+			"id" : "gps_autogen_timestamp_deps::@74f4afaa1e098026b442"
+		},
+		{
+			"backtrace" : 22,
+			"id" : "gps_autogen::@74f4afaa1e098026b442"
+		},
+		{
+			"backtrace" : 23,
+			"id" : "Joystick_autogen::@d00d4c647d094c431b3c"
+		},
+		{
+			"id" : "Joystick_autogen_timestamp_deps::@d00d4c647d094c431b3c"
+		},
+		{
+			"id" : "MissionManager_autogen_timestamp_deps::@e12eb56e7750c53eb58f"
+		},
+		{
+			"id" : "PositionManager_autogen_timestamp_deps::@4b267633ab025ca5bd0e"
+		},
+		{
+			"backtrace" : 24,
+			"id" : "PositionManager_autogen::@4b267633ab025ca5bd0e"
+		},
+		{
+			"id" : "QmlControls_autogen_timestamp_deps::@d5dd82b0e56b2219c454"
+		},
+		{
+			"backtrace" : 25,
+			"id" : "QmlControls_autogen::@d5dd82b0e56b2219c454"
+		},
+		{
+			"id" : "QtLocationPlugin_autogen_timestamp_deps::@cb27e8890ce76dc7ee3a"
+		},
+		{
+			"backtrace" : 26,
+			"id" : "QtLocationPlugin_autogen::@cb27e8890ce76dc7ee3a"
+		},
+		{
+			"id" : "Settings_autogen_timestamp_deps::@733e6871ef4a824e534d"
+		},
+		{
+			"backtrace" : 27,
+			"id" : "Settings_autogen::@733e6871ef4a824e534d"
+		},
+		{
+			"backtrace" : 28,
+			"id" : "Terrain_autogen::@0a655ee7d8c3a41863cd"
+		},
+		{
+			"id" : "Terrain_autogen_timestamp_deps::@0a655ee7d8c3a41863cd"
+		},
+		{
+			"id" : "uas_autogen_timestamp_deps::@6da1e3c54276e1f8fc1a"
+		},
+		{
+			"backtrace" : 29,
+			"id" : "uas_autogen::@6da1e3c54276e1f8fc1a"
+		},
+		{
+			"backtrace" : 30,
+			"id" : "Vehicle_autogen::@c0e1f80321d1675e1ad7"
+		},
+		{
+			"id" : "Vehicle_autogen_timestamp_deps::@c0e1f80321d1675e1ad7"
+		},
+		{
+			"id" : "Actuators_autogen_timestamp_deps::@769d8f4df06d82ea4571"
+		},
+		{
+			"backtrace" : 31,
+			"id" : "Actuators_autogen::@769d8f4df06d82ea4571"
+		},
+		{
+			"id" : "VehicleSetup_autogen_timestamp_deps::@6870a015836745ded890"
+		},
+		{
+			"backtrace" : 32,
+			"id" : "VehicleSetup_autogen::@6870a015836745ded890"
+		},
+		{
+			"backtrace" : 33,
+			"id" : "VideoManager_autogen::@18c8e2533fbe1554e465"
+		},
+		{
+			"id" : "VideoManager_autogen_timestamp_deps::@18c8e2533fbe1554e465"
+		},
+		{
+			"id" : "VideoReceiver_autogen_timestamp_deps::@f0159afbb18d3920e026"
+		},
+		{
+			"backtrace" : 34,
+			"id" : "VideoReceiver_autogen::@f0159afbb18d3920e026"
+		},
+		{
+			"backtrace" : 0,
+			"id" : "SiYi_autogen::@bd1c945e1f632c6e35f7"
+		},
+		{
+			"id" : "SiYi_autogen_timestamp_deps::@bd1c945e1f632c6e35f7"
+		}
+	],
+	"id" : "SiYi::@bd1c945e1f632c6e35f7",
+	"name" : "SiYi",
+	"nameOnDisk" : "libSiYi.a",
+	"paths" : 
+	{
+		"build" : "src/SiYi",
+		"source" : "src/SiYi"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3,
+				4,
+				5
+			]
+		},
+		{
+			"name" : "",
+			"sourceIndexes" : 
+			[
+				6
+			]
+		},
+		{
+			"name" : "CMake Rules",
+			"sourceIndexes" : 
+			[
+				7
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 0,
+			"compileGroupIndex" : 0,
+			"isGenerated" : true,
+			"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/SiYi/SiYi_autogen/mocs_compilation.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 0,
+			"path" : "src/SiYi/SiYi.cc",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 0,
+			"path" : "src/SiYi/SiYiCamera.cc",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 0,
+			"path" : "src/SiYi/SiYiCrcApi.cc",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 0,
+			"path" : "src/SiYi/SiYiTcpClient.cc",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 0,
+			"path" : "src/SiYi/SiYiTransmitter.cc",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/SiYi/SiYi_autogen/timestamp",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/src/SiYi/SiYi_autogen/timestamp.rule",
+			"sourceGroupIndex" : 2
+		}
+	],
+	"type" : "STATIC_LIBRARY"
+}

@@ -1,0 +1,19 @@
+{
+	"BUILD_DIR" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/QGroundControl_autogen",
+	"CMAKE_BINARY_DIR" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release",
+	"CMAKE_CURRENT_BINARY_DIR" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release",
+	"CMAKE_CURRENT_SOURCE_DIR" : "/home/droneleaf/software-stack/LeafMC",
+	"CMAKE_SOURCE_DIR" : "/home/droneleaf/software-stack/LeafMC",
+	"INCLUDE_DIR" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/QGroundControl_autogen/include",
+	"INPUTS" : [ "/home/droneleaf/software-stack/LeafMC/VideoReceiverApp/main.qml" ],
+	"LOCK_FILE" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/CMakeFiles/QGroundControl_autogen.dir/AutoRcc_qml_SCLPBLNWZG_Lock.lock",
+	"MULTI_CONFIG" : false,
+	"OPTIONS" : [ "-name", "qml" ],
+	"OUTPUT_CHECKSUM" : "SCLPBLNWZG",
+	"OUTPUT_NAME" : "qrc_qml.cpp",
+	"RCC_EXECUTABLE" : "/home/droneleaf/Qt/5.15.2/gcc_64/bin/rcc",
+	"RCC_LIST_OPTIONS" : [ "--list" ],
+	"SETTINGS_FILE" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/CMakeFiles/QGroundControl_autogen.dir/AutoRcc_qml_SCLPBLNWZG_Used.txt",
+	"SOURCE" : "/home/droneleaf/software-stack/LeafMC/VideoReceiverApp/qml.qrc",
+	"VERBOSITY" : 0
+}

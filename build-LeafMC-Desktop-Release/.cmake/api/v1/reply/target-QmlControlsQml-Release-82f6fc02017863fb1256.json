@@ -1,0 +1,35 @@
+{
+	"backtrace" : 1,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_custom_target"
+		],
+		"files" : 
+		[
+			"src/QmlControls/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 44,
+				"parent" : 0
+			}
+		]
+	},
+	"id" : "QmlControlsQml::@d5dd82b0e56b2219c454",
+	"name" : "QmlControlsQml",
+	"paths" : 
+	{
+		"build" : "src/QmlControls",
+		"source" : "src/QmlControls"
+	},
+	"sources" : [],
+	"type" : "UTILITY"
+}

@@ -1,0 +1,337 @@
+{
+	"BUILD_DIR" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmdnsengine/src/qmdnsengine_autogen",
+	"CMAKE_BINARY_DIR" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release",
+	"CMAKE_CURRENT_BINARY_DIR" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmdnsengine/src",
+	"CMAKE_CURRENT_SOURCE_DIR" : "/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src",
+	"CMAKE_EXECUTABLE" : "/opt/cmake-3.24.1/bin/cmake",
+	"CMAKE_LIST_FILES" : 
+	[
+		"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/CMakeLists.txt",
+		"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/qmdnsengine_export.h.in",
+		"/opt/cmake-3.24.1/share/cmake-3.24/Modules/CMakePackageConfigHelpers.cmake",
+		"/opt/cmake-3.24.1/share/cmake-3.24/Modules/WriteBasicConfigVersionFile.cmake",
+		"/opt/cmake-3.24.1/share/cmake-3.24/Modules/BasicConfigVersion-SameMajorVersion.cmake.in"
+	],
+	"CMAKE_SOURCE_DIR" : "/home/droneleaf/software-stack/LeafMC",
+	"DEP_FILE" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmdnsengine/src/qmdnsengine_autogen/deps",
+	"DEP_FILE_RULE_NAME" : "qmdnsengine_autogen/timestamp",
+	"HEADERS" : 
+	[
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include/qmdnsengine/abstractserver.h",
+			"MU",
+			"SUO47YY4UW/moc_abstractserver.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include/qmdnsengine/bitmap.h",
+			"MU",
+			"SUO47YY4UW/moc_bitmap.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include/qmdnsengine/browser.h",
+			"MU",
+			"SUO47YY4UW/moc_browser.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include/qmdnsengine/cache.h",
+			"MU",
+			"SUO47YY4UW/moc_cache.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include/qmdnsengine/dns.h",
+			"MU",
+			"SUO47YY4UW/moc_dns.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include/qmdnsengine/hostname.h",
+			"MU",
+			"SUO47YY4UW/moc_hostname.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include/qmdnsengine/mdns.h",
+			"MU",
+			"SUO47YY4UW/moc_mdns.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include/qmdnsengine/message.h",
+			"MU",
+			"SUO47YY4UW/moc_message.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include/qmdnsengine/prober.h",
+			"MU",
+			"SUO47YY4UW/moc_prober.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include/qmdnsengine/provider.h",
+			"MU",
+			"SUO47YY4UW/moc_provider.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include/qmdnsengine/query.h",
+			"MU",
+			"SUO47YY4UW/moc_query.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include/qmdnsengine/record.h",
+			"MU",
+			"SUO47YY4UW/moc_record.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include/qmdnsengine/resolver.h",
+			"MU",
+			"SUO47YY4UW/moc_resolver.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include/qmdnsengine/server.h",
+			"MU",
+			"SUO47YY4UW/moc_server.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include/qmdnsengine/service.h",
+			"MU",
+			"SUO47YY4UW/moc_service.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/bitmap_p.h",
+			"MU",
+			"UVLADIE3JM/moc_bitmap_p.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/browser_p.h",
+			"MU",
+			"UVLADIE3JM/moc_browser_p.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/cache_p.h",
+			"MU",
+			"UVLADIE3JM/moc_cache_p.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/hostname_p.h",
+			"MU",
+			"UVLADIE3JM/moc_hostname_p.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/message_p.h",
+			"MU",
+			"UVLADIE3JM/moc_message_p.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/prober_p.h",
+			"MU",
+			"UVLADIE3JM/moc_prober_p.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/provider_p.h",
+			"MU",
+			"UVLADIE3JM/moc_provider_p.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/query_p.h",
+			"MU",
+			"UVLADIE3JM/moc_query_p.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/record_p.h",
+			"MU",
+			"UVLADIE3JM/moc_record_p.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/resolver_p.h",
+			"MU",
+			"UVLADIE3JM/moc_resolver_p.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/server_p.h",
+			"MU",
+			"UVLADIE3JM/moc_server_p.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/service_p.h",
+			"MU",
+			"UVLADIE3JM/moc_service_p.cpp",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmdnsengine/src/qmdnsengine_export.h",
+			"MU",
+			"EJRQKI7XPS/moc_qmdnsengine_export.cpp",
+			null
+		]
+	],
+	"HEADER_EXTENSIONS" : [ "h", "hh", "h++", "hm", "hpp", "hxx", "in", "txx" ],
+	"INCLUDE_DIR" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmdnsengine/src/qmdnsengine_autogen/include",
+	"MOC_COMPILATION_FILE" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmdnsengine/src/qmdnsengine_autogen/mocs_compilation.cpp",
+	"MOC_DEFINITIONS" : 
+	[
+		"QGC_APPLICATION_NAME=\"QGroundControl\"",
+		"QGC_GST_STREAMING",
+		"QGC_ORG_DOMAIN=\"org.qgroundcontrol\"",
+		"QGC_ORG_NAME=\"QGroundControl.org\"",
+		"QT_CORE_LIB",
+		"QT_NETWORK_LIB",
+		"QT_NO_DEBUG"
+	],
+	"MOC_DEPEND_FILTERS" : 
+	[
+		[
+			"Q_PLUGIN_METADATA",
+			"[\n][ \t]*Q_PLUGIN_METADATA[ \t]*\\([^\\)]*FILE[ \t]*\"([^\"]+)\""
+		]
+	],
+	"MOC_INCLUDES" : 
+	[
+		"/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmdnsengine/src",
+		"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src",
+		"/home/droneleaf/software-stack/LeafMC/libs/eigen",
+		"/home/droneleaf/software-stack/LeafMC/libs/libevents",
+		"/home/droneleaf/software-stack/LeafMC/libs/mavlink/include/mavlink/v2.0",
+		"/home/droneleaf/software-stack/LeafMC/libs/mavlink/include/mavlink/v2.0/all",
+		"/home/droneleaf/software-stack/LeafMC/libs/mavlink/include/mavlink/v2.0/common",
+		"/home/droneleaf/software-stack/LeafMC/libs/shapelib",
+		"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/include",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/include",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/include/QtNetwork",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/include/QtCore",
+		"/home/droneleaf/Qt/5.15.2/gcc_64/mkspecs/linux-g++",
+		"/usr/include/c++/9",
+		"/usr/include/x86_64-linux-gnu/c++/9",
+		"/usr/include/c++/9/backward",
+		"/usr/lib/gcc/x86_64-linux-gnu/9/include",
+		"/usr/local/include",
+		"/usr/include/x86_64-linux-gnu",
+		"/usr/include"
+	],
+	"MOC_MACRO_NAMES" : [ "Q_OBJECT", "Q_GADGET", "Q_NAMESPACE", "Q_NAMESPACE_EXPORT" ],
+	"MOC_OPTIONS" : [],
+	"MOC_PATH_PREFIX" : false,
+	"MOC_PREDEFS_CMD" : 
+	[
+		"/usr/bin/g++",
+		"-dM",
+		"-E",
+		"-c",
+		"/opt/cmake-3.24.1/share/cmake-3.24/Modules/CMakeCXXCompilerABI.cpp"
+	],
+	"MOC_PREDEFS_FILE" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmdnsengine/src/qmdnsengine_autogen/moc_predefs.h",
+	"MOC_RELAXED_MODE" : false,
+	"MOC_SKIP" : [],
+	"MULTI_CONFIG" : false,
+	"PARALLEL" : 6,
+	"PARSE_CACHE_FILE" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmdnsengine/src/CMakeFiles/qmdnsengine_autogen.dir/ParseCache.txt",
+	"QT_MOC_EXECUTABLE" : "/home/droneleaf/Qt/5.15.2/gcc_64/bin/moc",
+	"QT_UIC_EXECUTABLE" : "/home/droneleaf/Qt/5.15.2/gcc_64/bin/uic",
+	"QT_VERSION_MAJOR" : 5,
+	"QT_VERSION_MINOR" : 15,
+	"SETTINGS_FILE" : "/home/droneleaf/software-stack/build-LeafMC-Desktop-Release/libs/qmdnsengine/src/CMakeFiles/qmdnsengine_autogen.dir/AutogenUsed.txt",
+	"SOURCES" : 
+	[
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/abstractserver.cpp",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/bitmap.cpp",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/browser.cpp",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/cache.cpp",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/dns.cpp",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/hostname.cpp",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/mdns.cpp",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/message.cpp",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/prober.cpp",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/provider.cpp",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/query.cpp",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/record.cpp",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/resolver.cpp",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/server.cpp",
+			"MU",
+			null
+		],
+		[
+			"/home/droneleaf/software-stack/LeafMC/libs/qmdnsengine/src/src/service.cpp",
+			"MU",
+			null
+		]
+	],
+	"UIC_OPTIONS" : [],
+	"UIC_SEARCH_PATHS" : [],
+	"UIC_SKIP" : [],
+	"UIC_UI_FILES" : [],
+	"VERBOSITY" : 0
+}
