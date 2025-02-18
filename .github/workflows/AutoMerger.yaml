@@ -1,0 +1,133 @@
+name: Auto Merge Submodules Recursively from Deepest First
+
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  auto-merge-submodules:
+    # if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Main Repository with Submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com:"
+          git config --global url."https://${{ secrets.TOKEN }}@github.com".insteadOf "https://github.com"
+
+      - name: Merge HEAD into BASE from Deepest Submodules Up
+        run: |
+          BASE_BRANCH=${{ github.event.pull_request.base.ref }}
+          HEAD_BRANCH=${{ github.event.pull_request.head.ref }}
+          echo "Pull request merged from: $HEAD_BRANCH → $BASE_BRANCH"
+
+          # Get all submodule paths sorted by depth (deepest first)
+          SUBMODULES=$(git config --file .gitmodules --get-regexp path | awk '{print $2}' | tac)
+
+          merge_submodules() {
+            local SUBMODULE_PATH=$1
+            cd "$SUBMODULE_PATH"
+            echo "Processing submodule: $SUBMODULE_PATH"
+
+            # Fetch latest updates
+            git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+            git fetch --all
+            git branch -r | grep -q $BASE_BRANCH || echo "Base branch fetch failed"
+            git branch -r | grep -q $HEAD_BRANCH || echo "Head branch fetch failed"
+
+
+            # Check if both HEAD and BASE branches exist in the submodule
+            if git show-ref --verify --quiet refs/remotes/origin/$BASE_BRANCH && git show-ref --verify --quiet refs/remotes/origin/$HEAD_BRANCH; then
+              echo "Both branches exist in submodule: $SUBMODULE_PATH"
+              
+              # Checkout BASE and attempt to merge HEAD into it
+              git checkout $BASE_BRANCH
+              git pull --allow-unrelated-histories
+              
+              # Recursively process nested submodules first
+              git submodule update --init --recursive
+              git submodule foreach --quiet `
+                # Get all submodule paths sorted by depth (deepest first)
+                SUBSUBMODULES=$(git config --file .gitmodules --get-regexp path | awk '{print $2}' | tac)
+                
+                merge_submodules() {
+                    local SUBMODULE_PATH=$1
+                    cd "$SUBMODULE_PATH"
+                    echo "Processing submodule: $SUBMODULE_PATH"
+        
+                    # Fetch latest updates
+                    git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+                    git fetch --all
+                    git branch -r | grep -q $BASE_BRANCH || echo "Base branch fetch failed"
+                    git branch -r | grep -q $HEAD_BRANCH || echo "Head branch fetch failed"
+        
+        
+                    # Check if both HEAD and BASE branches exist in the submodule
+                    if git show-ref --verify --quiet refs/remotes/origin/$BASE_BRANCH && git show-ref --verify --quiet refs/remotes/origin/$HEAD_BRANCH; then
+                      echo "Both branches exist in submodule: $SUBMODULE_PATH"
+                      
+                      # Checkout BASE and attempt to merge HEAD into it
+                      git checkout $BASE_BRANCH
+                      git pull --allow-unrelated-histories
+                      if ! git merge origin/$HEAD_BRANCH --allow-unrelated-histories --no-edit; then
+                        echo "❌ Merge conflict detected in $SUBMODULE_PATH/$BASE_BRANCH. Aborting process!"
+                        exit 1  # Stop the entire workflow if a conflict occurs
+                      fi
+        
+                      # Push changes
+                      git push origin $BASE_BRANCH
+                      echo "✅ Successfully merged $HEAD_BRANCH into $BASE_BRANCH in submodule: $SUBMODULE_PATH"
+                    else
+                      echo "Skipping submodule: $SUBMODULE_PATH as one or both branches are missing."
+                    fi
+        
+                    cd ..
+                }
+                
+                for SUB in $SUBSUBMODULES; do
+                  SUB_PATH="$SUB"
+                  merge_submodules "$SUB_PATH"
+                done
+              `
+              commit_and_push_parent "$SUBMODULE_PATH"
+
+              if ! git merge origin/$HEAD_BRANCH --allow-unrelated-histories --no-edit; then
+                echo "❌ Merge conflict detected in $SUBMODULE_PATH/$BASE_BRANCH. Aborting process!"
+                exit 1  # Stop the entire workflow if a conflict occurs
+              fi
+
+              # Push changes
+              git push origin $BASE_BRANCH
+              echo "✅ Successfully merged $HEAD_BRANCH into $BASE_BRANCH in submodule: $SUBMODULE_PATH"
+            else
+              echo "Skipping submodule: $SUBMODULE_PATH as one or both branches are missing."
+            fi
+
+            cd ..
+          }
+
+          commit_and_push_parent() {
+            local SUBMODULE_PATH=$1
+            echo "Committing submodule update in parent: $SUBMODULE_PATH"
+
+            git add .
+            git commit -m "Updated submodule $SUBMODULE_PATH after merging $HEAD_BRANCH into $BASE_BRANCH in its submodules"
+            git push origin $BASE_BRANCH
+          }
+
+          # Start merging from the deepest submodules first
+          for SUB in $SUBMODULES; do
+            SUB_PATH="$SUB"
+            merge_submodules "$SUB_PATH"
+          done
+
+          echo "✅ All submodules and main repository updated successfully."
