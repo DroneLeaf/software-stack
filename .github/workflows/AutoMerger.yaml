@@ -86,9 +86,7 @@ jobs:
           commit_and_push_parent() {
             local SUBMODULE_PATH=$1
             echo "Committing submodule update in parent: $SUBMODULE_PATH"
-            if [ git diff --quiet || git diff --cached --quiet ]; then
-              echo "Nothing to be committed"
-            else
+            if [[ $(git status --porcelain) ]]; then
               git add .
               git commit -m "Updated submodule $SUBMODULE_PATH after merging $HEAD_BRANCH into $BASE_BRANCH in its submodules"
               echo "Parent changes comitted in $SUBMODULE_PATH"
