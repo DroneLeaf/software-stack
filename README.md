@@ -8,7 +8,7 @@ This is a deployment-only repo where you can find all stable software stack rele
 
 **Note:** The version should be in the format of x.y.z where x is the major version, y is the minor version, and z is the patch version.
 
-**Note:** the following command should be done for Msgs, FC, MC
+**Note:** The following command should be done for Msgs, FC, MC:
 
 3. 
 ```bash
