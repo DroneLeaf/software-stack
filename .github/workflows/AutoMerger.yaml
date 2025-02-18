@@ -60,6 +60,7 @@ jobs:
                 SUBSUBMODULES=$(git config --file .gitmodules --get-regexp path | awk '{print $2}' | tac)
                 
                 merge_submodules() {
+                    local CURR=${pwd}
                     local SUBMODULE_PATH=$1
                     cd "$SUBMODULE_PATH"
                     echo "Processing submodule: $SUBMODULE_PATH"
@@ -90,7 +91,7 @@ jobs:
                       echo "Skipping submodule: $SUBMODULE_PATH as one or both branches are missing."
                     fi
         
-                    cd ..
+                    cd $CURR
                 }
                 
                 for SUB in $SUBSUBMODULES; do
