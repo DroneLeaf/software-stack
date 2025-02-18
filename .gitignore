@@ -16,3 +16,4 @@ HEAR_FC/.catkin_workspace
 build-LeafMC-Desktop-Debug/**
 build-LeafMC-Desktop-Release/**
 build/**
+build-LeafMC-Desktop-Release/
