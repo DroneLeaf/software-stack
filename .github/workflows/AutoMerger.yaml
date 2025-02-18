@@ -34,6 +34,7 @@ jobs:
           merge_submodules() {
             local SUBMODULE_PATH=$1
             local CURR=${pwd}
+            echo $CURR
             cd "$SUBMODULE_PATH"
             echo "Processing submodule: $SUBMODULE_PATH"            
 
