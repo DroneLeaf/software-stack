@@ -59,7 +59,7 @@ jobs:
         # make px4_fmu-v6x_default
     
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: px4-build-output
         path: |
