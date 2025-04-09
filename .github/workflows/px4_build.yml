@@ -44,6 +44,12 @@ jobs:
     - name: Setup environment
       run: |
         sudo apt-get update
+        # Add universe repository for some packages
+        sudo apt-get install -y software-properties-common
+        sudo add-apt-repository universe
+        
+        # Install libncurses5 from Ubuntu's repositories
+        sudo apt-get update
         sudo apt-get install -y \
           git \
           build-essential \
@@ -59,7 +65,8 @@ jobs:
           protobuf-compiler \
           libeigen3-dev \
           libopencv-dev \
-          libgtest-dev
+          libgtest-dev \
+          libncurses5 libncurses5-dev
     
     - name: Install PX4 dependencies
       working-directory: ./PX4-Autopilot
