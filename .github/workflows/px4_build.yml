@@ -12,15 +12,34 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout repository
+    - name: Checkout main repository
       uses: actions/checkout@v3
       with:
-        submodules: 'recursive'
         token: ${{ secrets.TOKEN }}
         
-    - name: Ensure PX4-Autopilot submodule is updated
+    - name: Get PX4-Autopilot submodule info
+      id: submodule
       run: |
-        git submodule update --init --recursive --force -- PX4-Autopilot
+        # Extract the repository URL and commit hash from the .gitmodules and git index
+        PX4_URL=$(git config --file .gitmodules --get submodule.PX4-Autopilot.url)
+        PX4_COMMIT=$(git submodule status PX4-Autopilot | awk '{print $1}' | sed 's/^-//')
+        
+        echo "Repository URL: $PX4_URL"
+        echo "Commit hash: $PX4_COMMIT"
+        
+        # Set outputs for use in next steps
+        echo "url=$PX4_URL" >> $GITHUB_OUTPUT
+        echo "commit=$PX4_COMMIT" >> $GITHUB_OUTPUT
+        
+    - name: Checkout PX4-Autopilot at specific commit
+      run: |
+        # Clone your specific PX4-Autopilot repository and checkout exact commit
+        rm -rf PX4-Autopilot
+        git clone https://${{ secrets.TOKEN }}@github.com/$(echo ${{ steps.submodule.outputs.url }} | sed 's/git@github.com://g' | sed 's/\.git$//g').git PX4-Autopilot
+        cd PX4-Autopilot
+        git checkout ${{ steps.submodule.outputs.commit }}
+        git submodule update --init --recursive
+        
     
     - name: Setup environment
       run: |
@@ -45,7 +64,20 @@ jobs:
     - name: Install PX4 dependencies
       working-directory: ./PX4-Autopilot
       run: |
-        bash ./Tools/setup/ubuntu.sh --no-nuttx
+        # Install Java manually (newer version)
+        sudo apt-get update
+        sudo apt-get install -y openjdk-17-jre openjdk-17-jdk
+        
+        # Install specific version of empy to fix em.RAW_OPT error
+        pip3 install empy==3.3.4
+        
+        # Run the setup script with options to bypass Java installation
+        bash ./Tools/setup/ubuntu.sh --no-nuttx --no-sim-tools
+        
+    - name: Run dependency script
+      working-directory: ./PX4-Autopilot
+      run: |
+        bash ./Tools/setup/ubuntu.sh
     
     - name: Build PX4 for SITL
       working-directory: ./PX4-Autopilot
@@ -57,7 +89,7 @@ jobs:
       run: |
         # Uncomment and modify these lines to build for specific hardware targets
         # make px4_fmu-v5_default
-        # make px4_fmu-v6x_default
+        make px4_fmu-v6x_default
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -65,4 +97,5 @@ jobs:
         name: px4-build-output
         path: |
           ./PX4-Autopilot/build/px4_sitl_default
+          ./PX4-Autopilot/build/px4_fmu-v6x_default
           # Add additional build outputs if you uncommented other targets
