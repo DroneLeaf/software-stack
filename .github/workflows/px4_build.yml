@@ -1,0 +1,67 @@
+name: PX4-Autopilot Build
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        submodules: 'recursive'
+        
+    - name: Ensure PX4-Autopilot submodule is updated
+      run: |
+        git submodule update --init --recursive --force -- PX4-Autopilot
+    
+    - name: Setup environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          git \
+          build-essential \
+          cmake \
+          ninja-build \
+          python3-pip \
+          python3-dev \
+          python3-setuptools \
+          python3-wheel \
+          python3-jinja2 \
+          libgstreamer1.0-dev \
+          libgstreamer-plugins-base1.0-dev \
+          protobuf-compiler \
+          libeigen3-dev \
+          libopencv-dev \
+          libgtest-dev
+    
+    - name: Install PX4 dependencies
+      working-directory: ./PX4-Autopilot
+      run: |
+        bash ./Tools/setup/ubuntu.sh --no-nuttx
+    
+    - name: Build PX4 for SITL
+      working-directory: ./PX4-Autopilot
+      run: |
+        make px4_sitl_default
+    
+    - name: Build PX4 for additional targets
+      working-directory: ./PX4-Autopilot
+      run: |
+        # Uncomment and modify these lines to build for specific hardware targets
+        # make px4_fmu-v5_default
+        # make px4_fmu-v6x_default
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: px4-build-output
+        path: |
+          ./PX4-Autopilot/build/px4_sitl_default
+          # Add additional build outputs if you uncommented other targets
