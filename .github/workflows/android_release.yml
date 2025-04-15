@@ -18,14 +18,11 @@ env:
 
 jobs:
   build:
-    runs-on:  ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:
        include:
-         - architecture: 32bits
-           eabi: armeabi-v7a
-           ARTIFACT: QGroundControl32.apk
          - architecture: 64bits
            eabi: arm64-v8a
            ARTIFACT: QGroundControl64.apk
@@ -112,9 +109,10 @@ jobs:
       - name: Update android manifest
         if: github.ref_name != 'Stable'
         run: |
-            ${SOURCE_DIR}/tools/update_android_manifest_package.sh ${{ github.ref_name }}
+            ls
+            cd ${SOURCE_DIR} && ls && ./tools/update_android_manifest_package.sh ${{ github.ref_name }}
 
-      - name: Build
+      - name: Build with Gradle fix
         working-directory: ${{ runner.temp }}/shadow_build_dir
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -122,22 +120,149 @@ jobs:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           ANDROID_NDK_LATEST_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           ANDROID_NDK: ${{ steps.setup-ndk.outputs.ndk-path }}
-        run:  |
+        run: |
+            # First, generate the project files
             qmake -r ${SOURCE_DIR}/qgroundcontrol.pro -spec android-clang CONFIG+=${BUILD_TYPE} CONFIG+=installer ANDROID_ABIS="${{ matrix.eabi }}"
-            make -j2
+            
+            # Run first part of make to generate gradle files
+            make &
+            MAKE_PID=$!
+            
+            # Wait for build.gradle to be generated - wait without timeout
+            echo "Waiting for build.gradle to be generated..."
+            GRADLE_FILE=""
+            
+            while true; do
+              # Find any build.gradle files in the build directory
+              FOUND_FILES=$(find . -name "build.gradle" -type f)
+              if [ -n "$FOUND_FILES" ]; then
+                # Target Android's main build.gradle file
+                for file in $FOUND_FILES; do
+                  if grep -q "android {" "$file"; then
+                    GRADLE_FILE="$file"
+                    break
+                  fi
+                done
+              fi
+              
+              # If we found the right file, break
+              if [ -n "$GRADLE_FILE" ]; then
+                break
+              fi
+              
+              # Sleep before checking again
+              sleep 2
+              
+              # Check if make is still running
+              if ! ps -p $MAKE_PID > /dev/null; then
+                echo "Make process ended before build.gradle was found. Restarting make..."
+                # Restart make if it finished without generating the build.gradle
+                make -j2 &
+                MAKE_PID=$!
+              fi
+            done
+            
+            # If we found the gradle file, modify it
+            if [ -n "$GRADLE_FILE" ]; then
+              echo "Found build.gradle at $GRADLE_FILE"
+              
+              # Stop the background make process
+              kill $MAKE_PID 2>/dev/null || true
+              wait $MAKE_PID 2>/dev/null || true
+              
+              # We need to check for XML files with invalid number format values
+              echo "Scanning for XML files with invalid number formats..."
+              
+              # First, find all XML files in the Android SDK directory
+              XML_FILES=$(find ${ANDROID_SDK_ROOT} -name "*.xml" -type f)
+              
+              # Search for any values like "35x" that would cause NumberFormatException
+              for file in $XML_FILES; do
+                if grep -q "[0-9]\+x" "$file"; then
+                  echo "Found potential invalid number format in: $file"
+                  
+                  # Make a backup
+                  cp "$file" "$file.bak"
+                  
+                  # Replace patterns like "35x" with just "35"
+                  sed -i 's/\([0-9]\+\)x/\1/g' "$file"
+                  
+                  echo "Fixed invalid number format in: $file"
+                fi
+              done
+              
+              # Now continue with the gradle.properties fix
+              # First, check and update gradle.properties
+              PROPERTIES_FILE=$(find . -name "gradle.properties" -type f)
+              
+              if [ -n "$PROPERTIES_FILE" ]; then
+                echo "Found gradle.properties at $PROPERTIES_FILE"
+                
+                # Update or add androidCompileSdkVersion
+                if grep -q "androidCompileSdkVersion" "$PROPERTIES_FILE"; then
+                  echo "Updating androidCompileSdkVersion in gradle.properties"
+                  sed -i 's/androidCompileSdkVersion=.*/androidCompileSdkVersion=33/g' "$PROPERTIES_FILE"
+                else
+                  echo "Adding androidCompileSdkVersion to gradle.properties"
+                  echo "androidCompileSdkVersion=33" >> "$PROPERTIES_FILE"
+                fi
+                
+                echo "Modified gradle.properties:"
+                cat "$PROPERTIES_FILE"
+              else
+                echo "WARNING: gradle.properties was not found, creating it in the same directory as build.gradle"
+                ANDROID_BUILD_DIR=$(dirname "$GRADLE_FILE")
+                echo "androidCompileSdkVersion=33" > "$ANDROID_BUILD_DIR/gradle.properties"
+                echo "Created gradle.properties in $ANDROID_BUILD_DIR"
+              fi
+              
+              # Now, directly modify the build.gradle file to ensure it doesn't error on parsing
+              echo "Modifying build.gradle to handle compileSdkVersion"
+              
+              # Backup the original file
+              cp "$GRADLE_FILE" "$GRADLE_FILE.bak"
+              
+              # Either:
+              # 1. Replace the toInteger() call with direct value if there are issues
+              # 2. Or add a fallback if the property is missing
+              
+              # Option 1: Replace the existing line with a direct value
+              sed -i 's/compileSdkVersion androidCompileSdkVersion.toInteger()/compileSdkVersion 33/g' "$GRADLE_FILE"
+              
+              # Option 2: Add a fallback (if option 1 doesn't fix it, we'll try this)
+              if grep -q "compileSdkVersion androidCompileSdkVersion.toInteger()" "$GRADLE_FILE"; then
+                # If it still exists, then sed didn't replace it correctly, try a different approach
+                sed -i 's/compileSdkVersion androidCompileSdkVersion.toInteger()/compileSdkVersion project.hasProperty("androidCompileSdkVersion") ? androidCompileSdkVersion.toInteger() : 33/g' "$GRADLE_FILE"
+              fi
+              
+              echo "Modified build.gradle:"
+              grep -A 5 "compileSdkVersion" "$GRADLE_FILE" || true
+              
+              echo "Modified build.gradle:"
+              cat "$GRADLE_FILE"
+            else
+              echo "WARNING: build.gradle was not found within the timeout period"
+              # Kill the make process if it's still running
+              kill $MAKE_PID 2>/dev/null || true
+              wait $MAKE_PID 2>/dev/null || true
+            fi
+            
+            # Now run make again to complete the build
+            make
 
       - name: ccache post-run
         run:  ccache -s
 
       - name: Save artifact
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.ARTIFACT }}
-          path: ${{ runner.temp }}/shadow_build_dir/package/${{ matrix.ARTIFACT }}
+          name: LeafMC Android builds
+          path: |
+            ${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT }}
 
       - name: Publish artifact to GitHub release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/shadow_build_dir/package/${{ matrix.ARTIFACT }}
+          gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT }}
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
