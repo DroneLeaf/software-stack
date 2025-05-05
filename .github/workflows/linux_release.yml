@@ -11,14 +11,13 @@ defaults:
     shell: bash
 
 env:
-  SOURCE_DIR:   ${{ github.workspace }}/LeafMC
-  QT_VERSION:   5.15.2
   ARTIFACT:     QGroundControl.AppImage
   BUILD_TYPE:   ${{ fromJSON('["DailyBuild", "StableBuild"]')[ github.ref_type == 'tag' || contains(github.ref, 'Stable_' ) ] }}
+  QT_VERSION:   5.15.2
 
 jobs:
   build:
-    runs-on:  ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repo
@@ -26,79 +25,188 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.TOKEN }}
+          fetch-depth: 0  # Fetch all history and tags
 
-      - name: Get all tags for correct version determination
-        working-directory:  ${{ github.workspace }}/LeafMC
+      - name: Fetch all tags
+        run: git fetch --all --tags
+
+      - name: Create Docker script
         run: |
-          git fetch --all --tags -f --depth 1
+          cat > build_script.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          # Print Linux distribution info
+          cat /etc/os-release
+          
+          # Install basic requirements
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common apt-utils
+          
+          # Install required packages
+          add-apt-repository universe
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+              git \
+              build-essential \
+              ccache \
+              cmake \
+              libsdl2-dev \
+              libgstreamer-plugins-base1.0-dev \
+              libgstreamer1.0-0 \
+              libunwind-dev \
+              libgstreamer1.0-dev \
+              gstreamer1.0-plugins-base \
+              gstreamer1.0-plugins-good \
+              gstreamer1.0-plugins-bad \
+              gstreamer1.0-plugins-ugly \
+              gstreamer1.0-libav \
+              gstreamer1.0-tools \
+              gstreamer1.0-x \
+              gstreamer1.0-alsa \
+              gstreamer1.0-gl \
+              gstreamer1.0-gtk3 \
+              gstreamer1.0-qt5 \
+              gstreamer1.0-pulseaudio \
+              binutils \
+              patchelf \
+              wget \
+              python3 \
+              python3-pip \
+              libfuse2 \
+              rsync \
+              squashfs-tools
 
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v3
-        with:
-          version:      ${{ env.QT_VERSION }}
-          host:         linux
-          target:       desktop
-          dir:          ${{ runner.temp }}
-          modules:      qtcharts
-          setup-python: true
+          # Install aqtinstall
+          pip3 install aqtinstall
+          
+          # Install Qt using aqtinstall
+          echo "Installing Qt ${QT_VERSION}..."
+          mkdir -p /opt/Qt
+          aqt install-qt --outputdir /opt/Qt linux desktop ${QT_VERSION} gcc_64
+          aqt install-qt --outputdir /opt/Qt linux desktop ${QT_VERSION} gcc_64 --modules qtcharts
+          
+          # Add Qt binaries to PATH
+          export PATH=/opt/Qt/${QT_VERSION}/gcc_64/bin:$PATH
+          echo "Qt installation completed. Path: $PATH"
+          echo "Qt version:"
+          qmake --version
+          
+          # Display current directory
+          echo "Current directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la
+          
+          # Setup ccache
+          mkdir -p ~/.ccache
+          echo "base_dir = /source" > ~/.ccache/ccache.conf
+          echo "compression = true" >> ~/.ccache/ccache.conf
+          echo "compression_level = 5" >> ~/.ccache/ccache.conf
+          ccache -s
+          ccache -z
+          
+          # Create build directory
+          mkdir -p /source/build
+          cd /source/build
+          
+          # Find the .pro file
+          PRO_FILE=$(find /source -name "qgroundcontrol.pro" -type f | head -n 1)
+          if [ -z "$PRO_FILE" ]; then
+            echo "Error: Could not find qgroundcontrol.pro file"
+            exit 1
+          fi
+          
+          # Get source directory
+          SOURCE_DIR=$(dirname $PRO_FILE)
+          echo "Source directory: $SOURCE_DIR"
+          
+          # Build the application
+          echo "Using project file: $PRO_FILE"
+          qmake -r $PRO_FILE CONFIG+=installer CONFIG+=${BUILD_TYPE}
+          make -j$(nproc)
+          
+          # Show ccache stats
+          ccache -s
+          
+          # Create a modified create_linux_appimage.sh that doesn't run the AppImage
+          SCRIPT_PATH=$SOURCE_DIR/deploy/create_linux_appimage.sh
+          
+          # Check if the script exists
+          if [ ! -f "$SCRIPT_PATH" ]; then
+            echo "Error: AppImage creation script not found at $SCRIPT_PATH"
+            exit 1
+          fi
+          
+          # Create a modified version of the script that skips running the AppImage
+          cp $SCRIPT_PATH ./modified_create_appimage.sh
+          chmod +x ./modified_create_appimage.sh
+          
+          # Modify the script to extract AppImage instead of running it
+          # Specifically target the line that runs appimagetool
+          sed -i 's|^\(.*\)./appimagetool-x86_64.AppImage \(.*\)$|\1./appimagetool-x86_64.AppImage --appimage-extract-and-run \2|g' ./modified_create_appimage.sh
+          
+          # Print modified file for debugging
+          echo "Modified script content:"
+          cat ./modified_create_appimage.sh
+          
+          # Create AppImage using the modified script
+          mkdir -p staging package
+          ./modified_create_appimage.sh $SOURCE_DIR ./staging ./package
+          
+          # Check if AppImage was created
+          ls -la package/
+          
+          # If AppImage wasn't created, try making it manually using extracted tools
+          if [ ! -f "package/${ARTIFACT}" ]; then
+            echo "Creating AppImage manually..."
+            
+            # Download appimagetool
+            wget -c -nv "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+            chmod a+x appimagetool-x86_64.AppImage
+            
+            # Extract appimagetool
+            ./appimagetool-x86_64.AppImage --appimage-extract
+            
+            # Use extracted appimagetool
+            STAGING_DIR="./staging"
+            if [ -d "$STAGING_DIR" ] && [ "$(ls -A $STAGING_DIR)" ]; then
+              echo "Using the extracted AppRun directly on staging directory"
+              ./squashfs-root/AppRun "$STAGING_DIR" "package/${ARTIFACT}"
+            else
+              echo "Error: Staging directory is empty or not found"
+              exit 1
+            fi
+          fi
+          EOF
+          
+          chmod +x build_script.sh
 
-      - name: Install QGC source dependencies
-        run:  sudo apt-get install -y libsdl2-dev
-
-      - name: Install Gstreamer
-        run:  sudo apt-get install -y libgstreamer-plugins-base1.0-dev libgstreamer1.0-0:amd64 libgstreamer1.0-dev
-
-      - name: Install ccache
-        run:  sudo apt-get install ccache
-
-      - name: Install post-link dependencies
-        run:  sudo apt-get install -y binutils patchelf
-
-      - name: Prepare ccache timestamp
-        id: ccache_cache_timestamp
-        run: echo "name=timestamp::$(date --utc +'%Y-%m-%d-%H\;%M\;%S')" >> $GITHUB_OUTPUT
-
-      - name: ccache cache files
-        uses: actions/cache@v3
-        with:
-          path:         ~/.ccache
-          key:          ${{ runner.os }}-ccache-${{steps.ccache_cache_timestamp.outputs.timestamp}}
-          restore-keys: ${{ runner.os }}-ccache-
-
-      - name: Setup ccache
+      - name: Build in Docker container
         run: |
-            mkdir -p ~/.ccache
-            echo "base_dir = ${GITHUB_WORKSPACE}" > ~/.ccache/ccache.conf
-            echo "compression = true" >> ~/.ccache/ccache.conf
-            echo "compression_level = 5" >> ~/.ccache/ccache.conf
-            ccache -s
-            ccache -z
+          docker run --rm \
+            -v $(pwd):/source \
+            -w /source \
+            -e QT_VERSION=${QT_VERSION} \
+            -e BUILD_TYPE=${BUILD_TYPE} \
+            -e ARTIFACT=${ARTIFACT} \
+            ubuntu:20.04 \
+            ./build_script.sh
 
-      - name: Create build directory
-        run:  mkdir ${{ runner.temp }}/shadow_build_dir
-
-      - name: Build
-        working-directory: ${{ runner.temp }}/shadow_build_dir
-        run:  |
-              qmake -r ${SOURCE_DIR}/qgroundcontrol.pro CONFIG+=installer CONFIG+=${BUILD_TYPE}
-              make -j2
-
-      - name: ccache post-run
-        run:  ccache -s
-
-      - name: Create AppImage
-        working-directory:  ${{ runner.temp }}/shadow_build_dir
-        run:                ${SOURCE_DIR}/deploy/create_linux_appimage.sh ${SOURCE_DIR} ./staging ./package;
+      - name: List build directory
+        run: |
+          ls -la
+          ls -la build || echo "build directory not found"
+          ls -la build/package || echo "build/package directory not found"
 
       - name: Save artifact
         uses: actions/upload-artifact@master
         with:
           name: ${{ env.ARTIFACT }}
-          path: ${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT }}
+          path: build/package/${{ env.ARTIFACT }}
 
       - name: Publish artifact to GitHub release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT }}
+          gh release upload ${{ github.event.release.tag_name }} build/package/${{ env.ARTIFACT }}
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
