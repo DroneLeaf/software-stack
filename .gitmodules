@@ -20,3 +20,6 @@
 [submodule "HEAR_Msgs/src/HEAR_Msgs"]
 	path = HEAR_Msgs/src/HEAR_Msgs
 	url = git@github.com:DroneLeaf/HEAR_Msgs.git
+[submodule "HEAR_Docker"]
+	path = HEAR_Docker
+	url = https://github.com/DroneLeaf/HEAR_Docker.git
