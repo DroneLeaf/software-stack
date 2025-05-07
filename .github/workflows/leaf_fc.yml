@@ -69,6 +69,11 @@ jobs:
         run: |
           # ACTIONS_RUNTIME_TOKEN, ACTIONS_RUNTIME_URL should be exposed
           # env|sort
+      - name: Cleanup existing builders
+        run: |
+          docker buildx ls
+          docker buildx rm hashimBuilder || echo "Builder does not exist yet"
+          
       - name: Build and push the tagged docker image to Amazon ECR
         working-directory: ${{env.SOURCE_DIR}}
         env:
@@ -149,9 +154,9 @@ jobs:
       - name: Compress extracted files
         run: |
           cp -r extracted_files extracted_files2
-          tar -czvf firmware.tar.gz -C extracted_files2 .
+          tar -czvf leaf_fc_ORIN.tar.gz -C extracted_files2 .
           # List the content to verify
-          tar -tvf firmware.tar.gz | head -n 10
+          tar -tvf leaf_fc_ORIN.tar.gz | head -n 10
 
       - name: Upload folder as artifact
         uses: actions/upload-artifact@v4
@@ -175,7 +180,7 @@ jobs:
       #   uses: softprops/action-gh-release@v1
       #   with:
       #     files: |
-      #       firmware.tar.gz
+      #       leaf_fc_ORIN.tar.gz
       #     tag_name: ${{ steps.tag.outputs.tag }}
       #     name: LEAF FC Release ${{ steps.tag.outputs.tag }}
       #     body: |
@@ -191,7 +196,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            firmware.tar.gz
+            leaf_fc_ORIN.tar.gz
           tag_name: ${{ steps.release_info.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
