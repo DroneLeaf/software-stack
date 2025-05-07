@@ -1,0 +1,227 @@
+name: LEAF_FC ARM Libs
+
+on:
+  # workflow_dispatch: {}
+  push:
+    branches: [ "dev" ]
+  release:
+    types: [created]
+
+env:
+  applicationfolder: src
+  SOURCE_DIR:   ${{ github.workspace }}/HEAR_Docker
+
+
+jobs:
+  build:
+    runs-on: Linux_ARM64_16core
+    strategy:
+      fail-fast: false
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v2
+        name: Checkout Repository
+        with:
+          submodules: recursive
+          token: ${{ secrets.TOKEN }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            hashim/docker/cache
+          key: ${{ runner.os }}-hashim
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
+          role-session-name: GitHub-Action-Role
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-pf-aws-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # - name: Set up JDK 1.8
+      #   uses: actions/setup-java@v1
+      #   with:
+      #     java-version: 1.8
+
+      - name: chmod
+        run: chmod -R +x ./.github
+
+      - name: Get Actor ID
+        id: get_actor_id
+        run: |
+             echo "::set-output name=actor_id::$(curl -s -H "Authorization: Bearer ${{ secrets.TOKEN }}" https://api.github.com/users/${{ github.actor }} | jq -r .id)"
+
+      - name: Expose GitHub Runtime
+        uses: crazy-max/ghaction-github-runtime@v3
+      
+      - name: Env
+        run: |
+          # ACTIONS_RUNTIME_TOKEN, ACTIONS_RUNTIME_URL should be exposed
+          # env|sort
+      - name: Build and push the tagged docker image to Amazon ECR
+        working-directory: ${{env.SOURCE_DIR}}
+        env:
+          ECR_REGISTRY: ${{ steps.login-pf-aws-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{secrets.AWS_ECR_REPO}}
+          IMAGE_TAG: latest
+          triggering_actor: ${{ github.triggering_actor }}
+          TOKEN: ${{ secrets.TOKEN }}
+           
+        run: |
+          echo ${{ github.triggering_actor }}
+          docker buildx create --name hashimBuilder --driver=docker-container
+          export BUILD_TIMESTAMP=$(date +%s)
+
+          echo " Start Building image for local use"
+
+          docker buildx build . --platform linux/arm64 \
+          -t hear_fc:latest \
+          --builder=hashimBuilder \
+          --load \
+          --cache-to type=gha,mode=max,scope=$ECR_REGISTRY/$ECR_REPOSITORY:cache \
+          --cache-from type=gha,scope=$ECR_REGISTRY/$ECR_REPOSITORY:cache \
+          --progress=plain \
+          --secret id=GITHUB_ID,env=triggering_actor \
+          --secret id=GITHUB_TOKEN,env=TOKEN \
+          --build-arg TARGET_ORIN="ON" \
+          --build-arg TARGET="ORIN" \
+          --build-arg opencv_url="geohashim/opencv:4.0.0" \
+          --build-arg qt_url="geohashim/qt" \
+          --build-arg USERNAME="hashim" \
+          --build-arg WS_NAME="HEAR_FC" \
+          --build-arg IS_PRODUCTION="TRUE" \
+          --build-arg COMPILE_BRANCH="dev" \
+          --build-arg RANDOM_NUM="$BUILD_TIMESTAMP"
+
+          echo " Start Building image for ecr"
+
+          docker buildx build . --platform linux/arm64 \
+          -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG  \
+          --builder=hashimBuilder \
+          --push \
+          --cache-to type=gha,mode=max,scope=$ECR_REGISTRY/$ECR_REPOSITORY:cache \
+          --cache-from type=gha,scope=$ECR_REGISTRY/$ECR_REPOSITORY:cache \
+          --progress=plain \
+          --secret id=GITHUB_ID,env=triggering_actor \
+          --secret id=GITHUB_TOKEN,env=TOKEN \
+          --build-arg TARGET_ORIN="ON" \
+          --build-arg TARGET="ORIN" \
+          --build-arg opencv_url="geohashim/opencv:4.0.0" \
+          --build-arg qt_url="geohashim/qt" \
+          --build-arg USERNAME="hashim" \
+          --build-arg WS_NAME="HEAR_FC" \
+          --build-arg IS_PRODUCTION="TRUE" \
+          --build-arg COMPILE_BRANCH="dev" \
+          --build-arg RANDOM_NUM="$BUILD_TIMESTAMP"
+
+      - name: Extract folder from Docker container
+        env:
+          ECR_REGISTRY: ${{ steps.login-pf-aws-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{secrets.AWS_ECR_REPO}}
+          IMAGE_TAG: latest
+        run: |
+          # Create a container from the image we just built (but don't run it)
+          CONTAINER_ID=$(docker create --platform linux/arm64 hear_fc:latest)
+
+          # Create a directory to hold the extracted files
+          rm  -rf extracted_files
+          mkdir -p extracted_files
+
+          # Copy the folder from the container to the host
+          # Replace /home/hashim/HEAR_FC/devel/lib with the actual path inside the container
+          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC/devel/lib ./extracted_files
+
+          # Remove the container
+          docker rm $CONTAINER_ID
+          ls -la extracted_files
+
+      - name: Compress extracted files
+        run: |
+          cp -r extracted_files extracted_files2
+          tar -czvf firmware.tar.gz -C extracted_files2 .
+          # List the content to verify
+          tar -tvf firmware.tar.gz | head -n 10
+
+      - name: Upload folder as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extracted-container-files
+          path: extracted_files
+
+      # - name: Create release tag
+      #   id: tag
+      #   if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+      #   run: |
+      #     TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+      #     BRANCH_NAME=${GITHUB_REF#refs/heads/}
+      #     TAG_NAME="leaf_fc-build-${BRANCH_NAME}-${TIMESTAMP}"
+      #     echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+      #     git tag $TAG_NAME
+      #     git push origin $TAG_NAME
+
+      # - name: Create GitHub Release
+      #   if: github.event_name == 'push'
+      #   uses: softprops/action-gh-release@v1
+      #   with:
+      #     files: |
+      #       firmware.tar.gz
+      #     tag_name: ${{ steps.tag.outputs.tag }}
+      #     name: LEAF FC Release ${{ steps.tag.outputs.tag }}
+      #     body: |
+      #       Stable LEAF FC Release
+      #       Commit: ${{ github.sha }}
+      #     draft: false
+      #     prerelease: false
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.TOKEN }}
+
+      - name: Upload firmware to existing release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            firmware.tar.gz
+          tag_name: ${{ steps.release_info.outputs.tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+
+
+
+      # - name: Build and Package Maven
+      #   id: package
+      #   working-directory: ${{ env.applicationfolder }}
+      #   run: $GITHUB_WORKSPACE/.github/scripts/build.sh
+
+      # - name: Upload Artifact to s3
+      #   working-directory: ${{ env.applicationfolder }}/target
+      #   run: aws s3 cp *.war s3://${{ env.S3BUCKET }}/
+        
+  # deploy:
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   environment: Dev
+  #   permissions:
+  #     id-token: write
+  #     contents: read
+  #   steps:
+  #   - uses: actions/checkout@v2
+  #   - uses: aws-actions/configure-aws-credentials@v1
+  #     with:
+  #       role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
+  #       role-session-name: GitHub-Action-Role
+  #       aws-region: ${{ env.AWS_REGION }}
+  #   - run: |
+  #       echo "Deploying branch ${{ env.GITHUB_REF }} to ${{ github.event.inputs.environment }}"
+  #       commit_hash=`git rev-parse HEAD`
+  #       aws deploy create-deployment --application-name HearArchCodeDeploy --deployment-group-name HearArchCodeDeployGroupName --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash --ignore-application-stop-failures
