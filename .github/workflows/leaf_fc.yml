@@ -2,8 +2,8 @@ name: LEAF_FC ARM Libs
 
 on:
   # workflow_dispatch: {}
-  push:
-    branches: [ "dev" ]
+  # push:
+  #   branches: [ "dev" ]
   release:
     types: [created]
 
@@ -16,7 +16,12 @@ jobs:
   build:
     runs-on: Linux_ARM64_16core
     strategy:
-      fail-fast: false
+      matrix:
+        include:
+          - target: ORIN
+            target_lower: orin
+          - target: RPI
+            target_lower: rpi
     permissions:
       id-token: write
       contents: read
@@ -24,8 +29,30 @@ jobs:
       - uses: actions/checkout@v2
         name: Checkout Repository
         with:
-          submodules: recursive
           token: ${{ secrets.TOKEN }}
+
+      - name: Get HEAR_Docker submodule info
+        id: submodule
+        run: |
+          # Extract the repository URL and commit hash from the .gitmodules and git index
+          HEAR_Docker_URL=$(git config --file .gitmodules --get submodule.HEAR_Docker.url)
+          PX4_COMMIT=$(git submodule status HEAR_Docker | awk '{print $1}' | sed 's/^-//')
+                      echo "Repository URL: $HEAR_Docker_URL"
+          echo "Commit hash: $PX4_COMMIT"
+                      # Set outputs for use in next steps
+          echo "url=$HEAR_Docker_URL" >> $GITHUB_OUTPUT
+          echo "commit=$PX4_COMMIT" >> $GITHUB_OUTPUT
+
+
+      - name: Checkout HEAR_Docker at specific commit
+        run: |
+          # Clone your specific HEAR_Docker repository and checkout exact commit
+          rm -rf HEAR_Docker
+          git clone https://${{ secrets.TOKEN }}@github.com/$(echo ${{ steps.submodule.outputs.url }} | sed 's|https://github.com/||g' | sed 's/\.git$//g').git HEAR_Docker
+          cd HEAR_Docker
+          git checkout ${{ steps.submodule.outputs.commit }}
+          git submodule update --init --recursive
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
@@ -82,25 +109,28 @@ jobs:
           IMAGE_TAG: latest
           triggering_actor: ${{ github.triggering_actor }}
           TOKEN: ${{ secrets.TOKEN }}
-           
+          target_lower: ${{matrix.target_lower}}
         run: |
           echo ${{ github.triggering_actor }}
+          echo "Building for TARGET: ${{ matrix.target }}"
           docker buildx create --name hashimBuilder --driver=docker-container
           export BUILD_TIMESTAMP=$(date +%s)
+
+          FULL_IMAGE_NAME="$ECR_REGISTRY/${ECR_REPOSITORY}_$target_lower:$IMAGE_TAG"
+          echo "Full image name: $FULL_IMAGE_NAME"
 
           echo " Start Building image for local use"
 
           docker buildx build . --platform linux/arm64 \
-          -t hear_fc:latest \
+          -t hear_fc_${{ matrix.target_lower }}:latest \
           --builder=hashimBuilder \
           --load \
-          --cache-to type=gha,mode=max,scope=$ECR_REGISTRY/$ECR_REPOSITORY:cache \
-          --cache-from type=gha,scope=$ECR_REGISTRY/$ECR_REPOSITORY:cache \
-          --progress=plain \
+          --cache-from type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache \
+          --cache-to type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache,image-manifest=true,oci-mediatypes=true \
           --secret id=GITHUB_ID,env=triggering_actor \
           --secret id=GITHUB_TOKEN,env=TOKEN \
-          --build-arg TARGET_ORIN="ON" \
-          --build-arg TARGET="ORIN" \
+          --build-arg TARGET_ORIN="${{ matrix.target == 'ORIN' && 'ON' || 'OFF' }}" \
+          --build-arg TARGET="${{ matrix.target }}" \
           --build-arg opencv_url="geohashim/opencv:4.0.0" \
           --build-arg qt_url="geohashim/qt" \
           --build-arg USERNAME="hashim" \
@@ -110,25 +140,26 @@ jobs:
           --build-arg RANDOM_NUM="$BUILD_TIMESTAMP"
 
           echo " Start Building image for ecr"
-
-          docker buildx build . --platform linux/arm64 \
-          -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG  \
-          --builder=hashimBuilder \
-          --push \
-          --cache-to type=gha,mode=max,scope=$ECR_REGISTRY/$ECR_REPOSITORY:cache \
-          --cache-from type=gha,scope=$ECR_REGISTRY/$ECR_REPOSITORY:cache \
-          --progress=plain \
-          --secret id=GITHUB_ID,env=triggering_actor \
-          --secret id=GITHUB_TOKEN,env=TOKEN \
-          --build-arg TARGET_ORIN="ON" \
-          --build-arg TARGET="ORIN" \
-          --build-arg opencv_url="geohashim/opencv:4.0.0" \
-          --build-arg qt_url="geohashim/qt" \
-          --build-arg USERNAME="hashim" \
-          --build-arg WS_NAME="HEAR_FC" \
-          --build-arg IS_PRODUCTION="TRUE" \
-          --build-arg COMPILE_BRANCH="dev" \
-          --build-arg RANDOM_NUM="$BUILD_TIMESTAMP"
+          
+          
+          # docker buildx build . --platform linux/arm64 \
+          # -t $FULL_IMAGE_NAME \
+          # --builder=hashimBuilder \
+          # --push \
+          # --cache-from type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache \
+          # --cache-to type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache,mode=max,image-manifest=true,oci-mediatypes=true \
+          # --progress=plain \
+          # --secret id=GITHUB_ID,env=triggering_actor \
+          # --secret id=GITHUB_TOKEN,env=TOKEN \
+          # --build-arg TARGET_ORIN="${{ matrix.target == 'ORIN' && 'ON' || 'OFF' }}" \
+          # --build-arg TARGET="${{ matrix.target }}" \
+          # --build-arg opencv_url="geohashim/opencv:4.0.0" \
+          # --build-arg qt_url="geohashim/qt" \
+          # --build-arg USERNAME="hashim" \
+          # --build-arg WS_NAME="HEAR_FC" \
+          # --build-arg IS_PRODUCTION="TRUE" \
+          # --build-arg COMPILE_BRANCH="dev" \
+          # --build-arg RANDOM_NUM="$BUILD_TIMESTAMP"
 
       - name: Extract folder from Docker container
         env:
@@ -137,32 +168,30 @@ jobs:
           IMAGE_TAG: latest
         run: |
           # Create a container from the image we just built (but don't run it)
-          CONTAINER_ID=$(docker create --platform linux/arm64 hear_fc:latest)
+          CONTAINER_ID=$(docker create --platform linux/arm64 hear_fc_${{ matrix.target_lower }}:latest)
 
           # Create a directory to hold the extracted files
-          rm  -rf extracted_files
-          mkdir -p extracted_files
+          rm  -rf extracted_files_${{ matrix.target_lower }}
+          mkdir -p extracted_files_${{ matrix.target_lower }}
 
           # Copy the folder from the container to the host
-          # Replace /home/hashim/HEAR_FC/devel/lib with the actual path inside the container
-          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC/devel/lib ./extracted_files
+          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC/devel/lib ./extracted_files_${{ matrix.target_lower }}
 
           # Remove the container
           docker rm $CONTAINER_ID
-          ls -la extracted_files
+          ls -la extracted_files_${{ matrix.target_lower }}
 
       - name: Compress extracted files
         run: |
-          cp -r extracted_files extracted_files2
-          tar -czvf leaf_fc_ORIN.tar.gz -C extracted_files2 .
+          tar -czvf leaf_fc_${{ matrix.target_lower }}.tar.gz -C extracted_files_${{ matrix.target_lower }} .
           # List the content to verify
-          tar -tvf leaf_fc_ORIN.tar.gz | head -n 10
+          tar -tvf leaf_fc_${{ matrix.target_lower }}.tar.gz | head -n 10
 
       - name: Upload folder as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: extracted-container-files
-          path: extracted_files
+          name: extracted_files_${{ matrix.target_lower }}
+          path: extracted_files_${{ matrix.target_lower }}
 
       # - name: Create release tag
       #   id: tag
@@ -196,7 +225,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            leaf_fc_ORIN.tar.gz
+            leaf_fc_${{ matrix.target_lower }}.tar.gz
           tag_name: ${{ steps.release_info.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
