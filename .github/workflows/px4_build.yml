@@ -1,0 +1,106 @@
+name: PX4-Autopilot Build
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:  # Also allow manual triggering
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    container:
+      image: px4io/px4-dev-nuttx-focal:latest
+      options: --privileged
+    
+    steps:
+    - name: Checkout main repository
+      uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.TOKEN }}
+        
+    - name: Get PX4-Autopilot submodule info
+      id: submodule
+      run: |
+        # Extract the repository URL and commit hash from the .gitmodules and git index
+        PX4_URL=$(git config --file .gitmodules --get submodule.PX4-Autopilot.url)
+        PX4_COMMIT=$(git submodule status PX4-Autopilot | awk '{print $1}' | sed 's/^-//')
+        
+        echo "Repository URL: $PX4_URL"
+        echo "Commit hash: $PX4_COMMIT"
+        
+        # Set outputs for use in next steps
+        echo "url=$PX4_URL" >> $GITHUB_OUTPUT
+        echo "commit=$PX4_COMMIT" >> $GITHUB_OUTPUT
+        
+    - name: Checkout PX4-Autopilot at specific commit
+      run: |
+        # Clone your specific PX4-Autopilot repository and checkout exact commit
+        rm -rf PX4-Autopilot
+        git clone https://${{ secrets.TOKEN }}@github.com/$(echo ${{ steps.submodule.outputs.url }} | sed 's/git@github.com://g' | sed 's/\.git$//g').git PX4-Autopilot
+        cd PX4-Autopilot
+        git checkout ${{ steps.submodule.outputs.commit }}
+        git submodule update --init --recursive
+    
+    - name: Build PX4 for SITL
+      working-directory: ./PX4-Autopilot
+      run: |
+        make px4_sitl_default
+    
+    - name: Build PX4 for additional targets
+      working-directory: ./PX4-Autopilot
+      run: |
+        # Uncomment and modify these lines to build for specific hardware targets
+        # make px4_fmu-v5_default
+        make px4_fmu-v6x_default
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: px4-build-output
+        path: |
+          ./PX4-Autopilot/build/px4_sitl_default
+          ./PX4-Autopilot/build/px4_fmu-v6x_default
+          # Add additional build outputs if you uncommented other targets
+    
+    - name: Create release tag
+      id: tag
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+      run: |
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        BRANCH_NAME=${GITHUB_REF#refs/heads/}
+        TAG_NAME="px4-build-${BRANCH_NAME}-${TIMESTAMP}"
+        echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+        git tag $TAG_NAME
+        git push origin $TAG_NAME
+    
+    - name: Package firmware files
+      run: |
+        mkdir -p release_files
+        cp ./PX4-Autopilot/build/px4_fmu-v6x_default/px4_fmu-v6x_default.px4 release_files/ || true
+        cp ./PX4-Autopilot/build/px4_sitl_default/bin/px4 release_files/px4_sitl || true
+    
+    - name: Create GitHub Release
+      if: github.event_name == 'workflow_dispatch'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          release_files/*
+        tag_name: ${{ steps.tag.outputs.tag }}
+        name: PX4 Stable Release ${{ steps.tag.outputs.tag }}
+        body: |
+          Stable PX4 Firmware Release
+          Commit: ${{ github.sha }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        
+    - name: Upload firmware to existing release
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          release_files/*
+        tag_name: ${{ steps.release_info.outputs.tag }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.TOKEN }}
