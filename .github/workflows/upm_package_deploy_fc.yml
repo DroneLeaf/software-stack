@@ -1,0 +1,323 @@
+name: UPM Package Deploy
+on:
+  workflow_run:
+    workflows: ["Builder Workflow","LEAF_FC ARM Libs"]
+    types:
+      - completed
+
+jobs:
+  process-extracted-files:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          #          - target: ORIN
+          #            target_lower: orin
+          #            target_upm_package_name: leaf_fc
+          #            target_upm_profile: sitl_release
+          - target: ORIN
+            target_lower: orin
+            target_upm_package_name: leaf_fc
+            target_upm_publish_name: leaf-fc
+            target_upm_profile: orin_release
+            target_upm_profile_upper: ORIN-Release
+            REPO_NAME: HEAR_FC
+
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
+          role-session-name: GitHub-Action-Role
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-pf-aws-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+
+      # 🏷️ Extract version from release/tag
+      - name: Extract version from release
+        id: extract_version
+        run: |
+          echo "🏷️ Extracting version from triggering workflow..."
+          
+          # Method 1: From triggering workflow's head branch (if it's a release branch)
+          BRANCH_NAME="${{ github.event.workflow_run.head_branch }}"
+          echo "Source branch: $BRANCH_NAME"
+          
+          # Method 2: From triggering workflow's tag (if available)
+          # Get the commit SHA from the triggering workflow
+          COMMIT_SHA="${{ github.event.workflow_run.head_sha }}"
+          echo "Source commit: $COMMIT_SHA"
+          
+          # Try to find a tag associated with this commit
+          git fetch --tags
+          TAG_NAME=$(git tag --points-at $COMMIT_SHA | head -1)
+          echo "Found tag: $TAG_NAME"
+          
+          # Extract version from various sources
+          VERSION=""
+          
+          # Priority 1: Git tag (v1.0.0, 1.0.0, release-1.0.0, etc.)
+          if [ -n "$TAG_NAME" ]; then
+            VERSION=$(echo "$TAG_NAME" | sed -E 's/^(v|release-|rel-)?([0-9]+\.[0-9]+\.[0-9]+).*$/\2/')
+            echo "Version from tag: $VERSION"
+          fi
+          
+          # Priority 2: Release branch name (release/1.0.0, rel-1.0.0, etc.)
+          if [ -z "$VERSION" ] && [[ "$BRANCH_NAME" =~ release|rel ]]; then
+            VERSION=$(echo "$BRANCH_NAME" | sed -E 's/.*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+            echo "Version from branch: $VERSION"
+          fi
+          
+          # Priority 3: Check latest GitHub release
+          if [ -z "$VERSION" ]; then
+            echo "Checking latest GitHub release..."
+            LATEST_RELEASE=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name // empty')
+            if [ -n "$LATEST_RELEASE" ]; then
+              VERSION=$(echo "$LATEST_RELEASE" | sed -E 's/^(v|release-|rel-)?([0-9]+\.[0-9]+\.[0-9]+).*$/\2/')
+              echo "Version from latest release: $VERSION"
+            fi
+          fi
+          
+          # Priority 4: Extract from package.json or version file (if exists)
+          if [ -z "$VERSION" ] && [ -f "package.json" ]; then
+            VERSION=$(jq -r '.version // empty' package.json)
+            echo "Version from package.json: $VERSION"
+          fi
+          
+          # Priority 5: Default fallback with timestamp
+          if [ -z "$VERSION" ]; then
+            VERSION="0.0.$(date +%Y%m%d)"
+            echo "Using fallback version: $VERSION"
+          fi
+          
+          # Validate version format
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "⚠️ Invalid version format: $VERSION"
+            VERSION="0.0.1"
+            echo "Using default version: $VERSION"
+          fi
+          
+          echo "✅ Final version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Download ${{ matrix.target }} extracted files
+        uses: actions/download-artifact@v4
+        with:
+          name: upm_extracted_files_${{ matrix.target_lower }}
+          path: ./artifacts/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+
+      - name: Verify downloads
+        run: |
+          echo "Verifying downloaded artifacts..."
+          
+          if [ -d "./artifacts" ]; then
+            echo "✅ Successfully downloaded artifacts for $target"
+            echo "📁 Directory contents:"
+            ls -la "./artifacts/"
+            ls -la "./artifacts/HEAR_FC"
+            ls -la "./artifacts/HEAR_FC/HEAR_FC/devel"
+            echo ""
+          else
+            echo "❌ No artifacts found for $target"
+          fi
+
+
+
+
+      # 🔐 GPG SETUP SECTION
+      - name: Setup GPG for package signing
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "🔐 Setting up GPG for package signing..."
+          
+          # Check if GPG is installed
+          if ! command -v gpg >/dev/null 2>&1; then
+            echo "📦 Installing GPG..."
+            sudo apt-get update
+            sudo apt-get install -y gnupg2
+          fi
+          
+          # Verify GPG secrets are available
+          if [ -z "$GPG_PRIVATE_KEY" ]; then
+            echo "❌ GPG_PRIVATE_KEY secret not found"
+            echo "Please add your GPG private key to repository secrets"
+            exit 1
+          fi
+          
+          # Import GPG private key
+          echo "🔑 Importing GPG private key..."
+          echo "$GPG_PRIVATE_KEY" | base64 -d | gpg --batch --import
+          
+          # Set up GPG trust and configuration
+          echo "🔧 Configuring GPG..."
+          
+          # Get the key ID
+          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep sec | awk '{print $2}' | cut -d'/' -f2 | head -1)
+          echo "GPG Key ID: $GPG_KEY_ID"
+          
+          # Trust the key ultimately
+          echo -e "5\ny\n" | gpg --batch --command-fd 0 --expert --edit-key $GPG_KEY_ID trust
+          
+          # Configure git for GPG signing (if needed)
+          git config --global user.signingkey $GPG_KEY_ID
+          git config --global commit.gpgsign false  # Disable git commit signing for CI
+          
+          # Test GPG signing
+          echo "🧪 Testing GPG signing..."
+          echo "test" | gpg --batch --yes --passphrase "$GPG_PASSPHRASE" --armor --detach-sig --sign
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ GPG signing test successful"
+          else
+            echo "❌ GPG signing test failed"
+            exit 1
+          fi
+          
+          # Set environment variables for later steps
+          echo "GPG_KEY_ID=$GPG_KEY_ID" >> $GITHUB_ENV
+          echo "GNUPGHOME=$HOME/.gnupg" >> $GITHUB_ENV
+
+
+
+
+      # 🛠️ CLONE HEAR_Docker
+      - name: Clone and HEAR_Docker repository
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          echo "🔄 Cloning HEAR_Docker repository ..."
+
+          # Clone repository with shallow clone for better performance
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/HEAR_Docker.git" HEAR_Docker \
+            || { echo "❌ Failed to clone HEAR_Docker repository"; exit 1; }
+        
+        
+        # 🛠️ CLONE HEAR_CLI
+      - name: Clone and HEAR_CLI repository
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          echo "🔄 Cloning HEAR_CLI repository ..."
+
+          # Clone repository with shallow clone for better performance
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/HEAR_CLI.git" HEAR_CLI \
+            || { echo "❌ Failed to clone HEAR_CLI repository"; exit 1; }
+      
+      
+      
+      # 🛠️ SETUP UPM CLI
+      # 🛠️ CLONE AND CONFIGURE UPM REPOSITORY
+      - name: Clone and configure UPM repository
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+          TARGET: ${{ matrix.target_lower  }}
+          REPO_NAME: ${{ matrix.REPO_NAME  }}
+        run: |
+          echo "🔄 Cloning UPM repository for $TARGET processing..."
+          
+          # Clone repository with shallow clone for better performance
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/UPM.git" UPM \
+            || { echo "❌ Failed to clone repository"; exit 1; }
+          
+          cd UPM
+          
+          # Verify required files exist
+          [ -f "upm.yaml" ] || { echo "❌ upm.yaml not found"; exit 1; }
+          
+          # Install yq if needed
+          if ! command -v yq >/dev/null 2>&1; then
+            sudo wget -qO /usr/local/bin/yq \
+              https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+            sudo chmod +x /usr/local/bin/yq
+          fi
+          
+          # Update workspace configuration
+          WORKSPACE_PATH="/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/artifacts/$REPO_NAME/$REPO_NAME"
+          # Verify workspace exists
+          [ -d "$WORKSPACE_PATH" ] || { 
+            echo "❌ Workspace not found: $WORKSPACE_PATH"
+            ls -la "$(dirname "$WORKSPACE_PATH")" || true
+            exit 1
+          }
+          
+          # Backup and update configuration
+          cp upm.yaml upm.yaml.backup
+          yq eval ".packages.${{ matrix.target_upm_package_name }}.build.workspace = \"$WORKSPACE_PATH\"" -i upm.yaml
+          yq eval ".packages.${{ matrix.target_upm_package_name }}.version = \"$VERSION\"" -i upm.yaml
+          
+          # Verify update
+          UPDATED_PATH=$(yq eval '.packages.${{ matrix.target_upm_package_name }}.build.workspace' upm.yaml)
+          if [ "$UPDATED_PATH" != "$WORKSPACE_PATH" ]; then
+            echo "❌ Configuration update failed"
+            mv upm.yaml.backup upm.yaml
+            exit 1
+          fi
+          
+          # replace the "/home/medo/projects/HEAR_CLI" directories in upm.yaml file to "/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/HEAR_CLI"
+          sed -i "s|/home/medo/projects/HEAR_CLI|/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/HEAR_CLI|g" upm.yaml
+          
+          # replace the "/home/medo/HEAR_Docker" directories in upm.yaml file to "/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/HEAR_Docker"
+          sed -i "s|/home/medo/HEAR_Docker|/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/HEAR_Docker|g" upm.yaml
+          
+          cat upm.yaml
+          
+          echo "✅ UPM repository configured successfully"
+          echo "🎯 Target: $TARGET"
+          echo "📂 Workspace: $WORKSPACE_PATH"
+          echo "📁 Files in workspace: $(find "$WORKSPACE_PATH" -type f | wc -l)"
+          cd upm
+          pip install -r requirements.txt
+          cd ..
+          
+          
+          
+          # Run UPM commands with proper GPG setup
+          echo "🚀 Running UPM package command..."
+          GPG_TTY=$(tty) ./upm_cli package ${{ matrix.target_upm_package_name }} ${{ matrix.target_upm_profile }} deb
+          echo "🚀 Running UPM deploy command with GPG signing..."
+          target_upm_profile_upper=${{matrix.target_upm_profile_upper}}
+          target_upm_publish_name=${{matrix.target_upm_publish_name}}
+          GPG_TTY=$(tty) ./upm_cli deploy ${{ matrix.target_upm_package_name }} dist/$target_upm_publish_name-$VERSION-$target_upm_profile_upper.deb leaf_apt_repo
+
+
+
+
+      - name: Generate processing summary
+        run: |
+          echo "📋 PROCESSING SUMMARY"
+          echo "===================="
+          echo "Workflow run ID: ${{ github.event.workflow_run.id }}"
+          echo "Triggered by: ${{ github.event.workflow_run.head_commit.message }}"
+          echo "Branch: ${{ github.event.workflow_run.head_branch }}"
+          echo "Processing completed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo ""
+          
+          # Count total files processed
+          total_files=0
+          if [ -d "./artifacts" ]; then
+            count=$(find "./artifacts/" -type f | wc -l)
+            echo "$target: $count files"
+            total_files=$((total_files + count))
+          fi
+          
+          echo "Total files processed: $total_files"
+          echo "✅ Second workflow completed successfully!"
