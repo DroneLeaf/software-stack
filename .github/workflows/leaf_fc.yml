@@ -173,9 +173,11 @@ jobs:
           # Create a directory to hold the extracted files
           rm  -rf extracted_files_${{ matrix.target_lower }}
           mkdir -p extracted_files_${{ matrix.target_lower }}
+          mkdir -p upm_extracted_files_${{ matrix.target_lower }}/HEAR_FC
 
           # Copy the folder from the container to the host
           docker cp $CONTAINER_ID:/home/hashim/HEAR_FC/devel/lib ./extracted_files_${{ matrix.target_lower }}
+          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC ./upm_extracted_files_${{ matrix.target_lower }}/HEAR_FC
 
           # Remove the container
           docker rm $CONTAINER_ID
@@ -192,6 +194,12 @@ jobs:
         with:
           name: extracted_files_${{ matrix.target_lower }}
           path: extracted_files_${{ matrix.target_lower }}
+
+      - name: Upload upm folder as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: upm_extracted_files_${{ matrix.target_lower }}
+          path: upm_extracted_files_${{ matrix.target_lower }}    
 
       # - name: Create release tag
       #   id: tag
