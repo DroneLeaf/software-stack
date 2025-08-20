@@ -125,7 +125,6 @@ jobs:
           -t hear_fc_${{ matrix.target_lower }}:latest \
           --builder=hashimBuilder \
           --load \
-          --cache-from type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache \
           --cache-to type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache,image-manifest=true,oci-mediatypes=true \
           --secret id=GITHUB_ID,env=triggering_actor \
           --secret id=GITHUB_TOKEN,env=TOKEN \
