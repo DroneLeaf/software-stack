@@ -31,27 +31,40 @@ jobs:
         with:
           token: ${{ secrets.TOKEN }}
 
-      - name: Get HEAR_Docker submodule info
-        id: submodule
-        run: |
-          # Extract the repository URL and commit hash from the .gitmodules and git index
-          HEAR_Docker_URL=$(git config --file .gitmodules --get submodule.HEAR_Docker.url)
-          PX4_COMMIT=$(git submodule status HEAR_Docker | awk '{print $1}' | sed 's/^-//')
-                      echo "Repository URL: $HEAR_Docker_URL"
-          echo "Commit hash: $PX4_COMMIT"
-                      # Set outputs for use in next steps
-          echo "url=$HEAR_Docker_URL" >> $GITHUB_OUTPUT
-          echo "commit=$PX4_COMMIT" >> $GITHUB_OUTPUT
+#      - name: Get HEAR_Docker submodule info
+#        id: submodule
+#        run: |
+#          # Extract the repository URL and commit hash from the .gitmodules and git index
+#          HEAR_Docker_URL=$(git config --file .gitmodules --get submodule.HEAR_Docker.url)
+#          PX4_COMMIT=$(git submodule status HEAR_Docker | awk '{print $1}' | sed 's/^-//')
+#                      echo "Repository URL: $HEAR_Docker_URL"
+#          echo "Commit hash: $PX4_COMMIT"
+#                      # Set outputs for use in next steps
+#          echo "url=$HEAR_Docker_URL" >> $GITHUB_OUTPUT
+#          echo "commit=$PX4_COMMIT" >> $GITHUB_OUTPUT
+#
+#
+#      - name: Checkout HEAR_Docker at specific commit
+#        run: |
+#          # Clone your specific HEAR_Docker repository and checkout exact commit
+#          rm -rf HEAR_Docker
+#          git clone https://${{ secrets.TOKEN }}@github.com/$(echo ${{ steps.submodule.outputs.url }} | sed 's|https://github.com/||g' | sed 's/\.git$//g').git HEAR_Docker
+#          cd HEAR_Docker
+#          git checkout ${{ steps.submodule.outputs.commit }}
+#          git submodule update --init --recursive
 
-
-      - name: Checkout HEAR_Docker at specific commit
+      # 🛠️ CLONE HEAR_Docker
+      - name: Clone and HEAR_Docker repository
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
         run: |
-          # Clone your specific HEAR_Docker repository and checkout exact commit
+          echo "🔄 Cloning HEAR_Docker repository ..."
           rm -rf HEAR_Docker
-          git clone https://${{ secrets.TOKEN }}@github.com/$(echo ${{ steps.submodule.outputs.url }} | sed 's|https://github.com/||g' | sed 's/\.git$//g').git HEAR_Docker
-          cd HEAR_Docker
-          git checkout ${{ steps.submodule.outputs.commit }}
-          git submodule update --init --recursive
+
+          # Clone repository with shallow clone for better performance
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/HEAR_Docker.git" HEAR_Docker \
+            || { echo "❌ Failed to clone HEAR_Docker repository"; exit 1; }
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -125,6 +138,7 @@ jobs:
           -t hear_fc_${{ matrix.target_lower }}:latest \
           --builder=hashimBuilder \
           --load \
+          --cache-from type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache \
           --cache-to type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache,image-manifest=true,oci-mediatypes=true \
           --secret id=GITHUB_ID,env=triggering_actor \
           --secret id=GITHUB_TOKEN,env=TOKEN \
