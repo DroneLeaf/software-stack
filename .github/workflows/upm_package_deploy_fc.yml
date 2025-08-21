@@ -60,7 +60,7 @@ jobs:
           
           # Try to find a tag associated with this commit
           git fetch --tags
-          TAG_NAME=$(git tag --points-at $COMMIT_SHA | head -1)
+          TAG_NAME=$(git tag --points-at $COMMIT_SHA | sort -V | tail -1)
           echo "Found tag: $TAG_NAME"
           
           # Extract version from various sources
