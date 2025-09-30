@@ -51,7 +51,7 @@ jobs:
                                   | grep -v '^HEAD$' || true)
 
         SOURCE_BRANCH=""
-        for CAND in main master develop release "${CONTAINERS[@]}"; do
+        for CAND in main master develop release dev "${CONTAINERS[@]}"; do
           if git rev-parse --verify -q "refs/remotes/origin/${CAND}" >/dev/null; then
             if git merge-base --is-ancestor "${TAG_SHA}" "refs/remotes/origin/${CAND}"; then
               SOURCE_BRANCH="${CAND}"
@@ -65,6 +65,13 @@ jobs:
           exit 1
         fi
 
+        # Map PX4 branch exceptions: dev->leaf-dev, main->leaf-main, else same
+        case "${SOURCE_BRANCH}" in
+          dev)   PX4_BRANCH="leaf-dev" ;;
+          main)  PX4_BRANCH="leaf-main" ;;
+          *)     PX4_BRANCH="${SOURCE_BRANCH}" ;;
+        esac
+
         PX4_URL="$(git config --file .gitmodules --get submodule.PX4-Autopilot.url || true)"
         if [[ -z "${PX4_URL}" ]]; then
           echo "PX4 submodule URL not found in .gitmodules." >&2
@@ -72,10 +79,11 @@ jobs:
         fi
 
         echo "source_branch=${SOURCE_BRANCH}" >> "$GITHUB_OUTPUT"
+        echo "px4_branch=${PX4_BRANCH}" >> "$GITHUB_OUTPUT"
         echo "px4_url=${PX4_URL}" >> "$GITHUB_OUTPUT"
 
-    # Step 2: Clone PX4-Autopilot on the exact same branch — fail if missing
-    - name: Checkout PX4-Autopilot on source branch (no fallback)
+    # Step 2: Clone PX4-Autopilot on the mapped branch — fail if missing
+    - name: Checkout PX4-Autopilot on mapped branch (no fallback)
       shell: bash
       env:
         TOKEN: ${{ secrets.TOKEN }}
@@ -83,7 +91,11 @@ jobs:
         set -euo pipefail
 
         SRC_BRANCH="${{ steps.resolve_branch.outputs.source_branch }}"
+        PX4_BRANCH="${{ steps.resolve_branch.outputs.px4_branch }}"
         RAW_URL="${{ steps.resolve_branch.outputs.px4_url }}"
+
+        echo "Source branch: ${SRC_BRANCH}"
+        echo "PX4 branch (mapped): ${PX4_BRANCH}"
 
         # Normalize to HTTPS and inject token
         HTTPS_BASE="$(echo "${RAW_URL}" \
@@ -91,15 +103,16 @@ jobs:
         AUTH_URL="https://${TOKEN}@${HTTPS_BASE#https://}"
 
         # Require the branch to exist in PX4 repo
-        if ! git ls-remote --heads "${AUTH_URL}.git" "${SRC_BRANCH}" | grep -q .; then
-          echo "Required branch '${SRC_BRANCH}' does not exist in PX4 repo: ${HTTPS_BASE}" >&2
+        if ! git ls-remote --heads "${AUTH_URL}.git" "${PX4_BRANCH}" | grep -q .; then
+          echo "Required branch '${PX4_BRANCH}' does not exist in PX4 repo: ${HTTPS_BASE}" >&2
           exit 1
         fi
 
         rm -rf PX4-Autopilot
-        git clone -b "${SRC_BRANCH}" --single-branch "${AUTH_URL}.git" PX4-Autopilot
+        git clone -b "${PX4_BRANCH}" --single-branch "${AUTH_URL}.git" PX4-Autopilot
         cd PX4-Autopilot
         git submodule update --init --recursive
+
     
     - name: Build PX4 for SITL
       working-directory: ./PX4-Autopilot
