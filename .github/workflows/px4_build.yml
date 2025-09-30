@@ -18,27 +18,87 @@ jobs:
       with:
         token: ${{ secrets.TOKEN }}
         
-    - name: Get PX4-Autopilot submodule info
-      id: submodule
+    # Step 1: Resolve the source branch for the release tag and get PX4 URL
+    - name: Resolve release source branch & PX4 URL
+      id: resolve_branch
+      shell: bash
       run: |
-        # Extract the repository URL and commit hash from the .gitmodules and git index
-        PX4_URL=$(git config --file .gitmodules --get submodule.PX4-Autopilot.url)
-        PX4_COMMIT=$(git submodule status PX4-Autopilot | awk '{print $1}' | sed 's/^-//')
-        
-        echo "Repository URL: $PX4_URL"
-        echo "Commit hash: $PX4_COMMIT"
-        
-        # Set outputs for use in next steps
-        echo "url=$PX4_URL" >> $GITHUB_OUTPUT
-        echo "commit=$PX4_COMMIT" >> $GITHUB_OUTPUT
-        
-    - name: Checkout PX4-Autopilot at specific commit
+        set -euo pipefail
+
+        # Fix "dubious ownership" in Actions workspace
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+        # Ensure refs are available
+        git fetch --tags origin
+        git fetch origin '+refs/heads/*:refs/remotes/origin/*'
+
+        # Determine tag name (for release workflows)
+        if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+        else
+          TAG_NAME="${GITHUB_REF_NAME:-}"
+        fi
+        if [[ -z "${TAG_NAME}" ]]; then
+          echo "Could not resolve tag name." >&2
+          exit 1
+        fi
+
+        TAG_SHA="$(git rev-list -n 1 "${TAG_NAME}")"
+
+        # Find a branch in *this repo* that contains the tag commit
+        mapfile -t CONTAINERS < <(git branch -r --contains "${TAG_SHA}" \
+                                  | sed -n 's#^[[:space:]]*origin/##p' \
+                                  | grep -v '^HEAD$' || true)
+
+        SOURCE_BRANCH=""
+        for CAND in main master develop release "${CONTAINERS[@]}"; do
+          if git rev-parse --verify -q "refs/remotes/origin/${CAND}" >/dev/null; then
+            if git merge-base --is-ancestor "${TAG_SHA}" "refs/remotes/origin/${CAND}"; then
+              SOURCE_BRANCH="${CAND}"
+              break
+            fi
+          fi
+        done
+
+        if [[ -z "${SOURCE_BRANCH}" ]]; then
+          echo "No branch found that contains tag ${TAG_NAME} (${TAG_SHA})." >&2
+          exit 1
+        fi
+
+        PX4_URL="$(git config --file .gitmodules --get submodule.PX4-Autopilot.url || true)"
+        if [[ -z "${PX4_URL}" ]]; then
+          echo "PX4 submodule URL not found in .gitmodules." >&2
+          exit 1
+        fi
+
+        echo "source_branch=${SOURCE_BRANCH}" >> "$GITHUB_OUTPUT"
+        echo "px4_url=${PX4_URL}" >> "$GITHUB_OUTPUT"
+
+    # Step 2: Clone PX4-Autopilot on the exact same branch — fail if missing
+    - name: Checkout PX4-Autopilot on source branch (no fallback)
+      shell: bash
+      env:
+        TOKEN: ${{ secrets.TOKEN }}
       run: |
-        # Clone your specific PX4-Autopilot repository and checkout exact commit
+        set -euo pipefail
+
+        SRC_BRANCH="${{ steps.resolve_branch.outputs.source_branch }}"
+        RAW_URL="${{ steps.resolve_branch.outputs.px4_url }}"
+
+        # Normalize to HTTPS and inject token
+        HTTPS_BASE="$(echo "${RAW_URL}" \
+          | sed -E 's#^git@github.com:#https://github.com/#; s#^ssh://git@github.com/#+https://github.com/#; s#\.git$##')"
+        AUTH_URL="https://${TOKEN}@${HTTPS_BASE#https://}"
+
+        # Require the branch to exist in PX4 repo
+        if ! git ls-remote --heads "${AUTH_URL}.git" "${SRC_BRANCH}" | grep -q .; then
+          echo "Required branch '${SRC_BRANCH}' does not exist in PX4 repo: ${HTTPS_BASE}" >&2
+          exit 1
+        fi
+
         rm -rf PX4-Autopilot
-        git clone https://${{ secrets.TOKEN }}@github.com/$(echo ${{ steps.submodule.outputs.url }} | sed 's/git@github.com://g' | sed 's/\.git$//g').git PX4-Autopilot
+        git clone -b "${SRC_BRANCH}" --single-branch "${AUTH_URL}.git" PX4-Autopilot
         cd PX4-Autopilot
-        git checkout ${{ steps.submodule.outputs.commit }}
         git submodule update --init --recursive
     
     - name: Build PX4 for SITL
