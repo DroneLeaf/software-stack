@@ -1,25 +1,25 @@
 [submodule "PX4-Autopilot"]
 	path = PX4-Autopilot
-	url = git@github.com:DroneLeaf/PX4-Autopilot.git
+	url = https://github.com/DroneLeaf/PX4-Autopilot.git
 [submodule "HEAR_Configurations"]
 	path = HEAR_Configurations
-	url = git@github.com:DroneLeaf/HEAR_Configurations.git
+	url = https://github.com/DroneLeaf/HEAR_Configurations.git
 [submodule "mavlink-router"]
 	path = mavlink-router
-	url = git@github.com:DroneLeaf/mavlink-router.git
+	url = https://github.com/DroneLeaf/mavlink-router.git
 [submodule "LeafMC"]
 	path = LeafMC
-	url = git@github.com:DroneLeaf/LeafMC.git
+	url = https://github.com/DroneLeaf/LeafMC.git
 	branch = dev
 [submodule "HEAR_FC/src/HEAR_FC"]
 	path = HEAR_FC/src/HEAR_FC
-	url = git@github.com:DroneLeaf/HEAR_FC.git
+	url = https://github.com/DroneLeaf/HEAR_FC.git
 [submodule "HEAR_MC/src/HEAR_MC"]
 	path = HEAR_MC/src/HEAR_MC
-	url = git@github.com:DroneLeaf/HEAR_MC.git
+	url = https://github.com/DroneLeaf/HEAR_MC.git
 [submodule "HEAR_Msgs/src/HEAR_Msgs"]
 	path = HEAR_Msgs/src/HEAR_Msgs
-	url = git@github.com:DroneLeaf/HEAR_Msgs.git
+	url = https://github.com/DroneLeaf/HEAR_Msgs.git
 [submodule "HEAR_Docker"]
 	path = HEAR_Docker
 	url = https://github.com/DroneLeaf/HEAR_Docker.git
