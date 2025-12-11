@@ -17,3 +17,5 @@ build-LeafMC-Desktop-Debug/**
 build-LeafMC-Desktop-Release/**
 build/**
 build-LeafMC-Desktop-Release/
+HEAR_Msgs/.catkin_workspace
+HEAR_Msgs/src/CMakeLists.txt
