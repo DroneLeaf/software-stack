@@ -1,0 +1,47 @@
+name: deploy-apt
+description: deploy to DroneLeaf new apt repository (repo.droneleaf.io)
+inputs:
+  package_name:
+   required: true
+   description: "package name"
+  package_path:
+   required: true
+   description: "package DEB file path (absoulte path)"
+  registry_username:
+   required: true
+  registry_password:
+   required: true
+  registry_url:
+   required: true
+  
+
+
+runs:
+  using: composite
+  steps:
+    - name: deploy
+      id: deploy
+      shell: bash
+      run: |
+        echo "📤 Deploying..."
+
+        curl -v -u ${{ inputs.registry_username }}:${{ inputs.registry_password }} \
+        -H "Content-Type: multipart/form-data" \
+        --data-binary "@${{ inputs.package_path }}" "${{ inputs.registry_url }}"
+        
+
+    - name: success
+      if: success()
+      shell: bash
+      run: |
+        echo "✅ package ${{ inputs.package_name }} deployed successfully to ${{ inputs.registry_url }}" >> "$GITHUB_STEP_SUMMARY"
+        exit 0
+
+    - name: failure
+      if: failure()
+      shell: bash
+      run: |
+        echo "❌ package ${{ inputs.package_name }} deployment failed to ${{ inputs.registry_url }}" >> "$GITHUB_STEP_SUMMARY"
+        exit 1
+
+  
