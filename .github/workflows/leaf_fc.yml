@@ -1,14 +1,10 @@
 name: LEAF_FC ARM Libs
 
 on:
-  # workflow_dispatch: {}
-  # push:
-  #   branches: [ "dev" ]
   release:
-    types: [created]
+    types: [created] # our habit: releases are created from a tag from a non-main branch sourced from dev-sitl
 
 env:
-  applicationfolder: src
   SOURCE_DIR:   ${{ github.workspace }}/HEAR_Docker
 
 
@@ -26,32 +22,10 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v2
-        name: Checkout Repository
+      - name: Checkout repository
+        uses: actions/checkout@v2
         with:
           token: ${{ secrets.TOKEN }}
-
-#      - name: Get HEAR_Docker submodule info
-#        id: submodule
-#        run: |
-#          # Extract the repository URL and commit hash from the .gitmodules and git index
-#          HEAR_Docker_URL=$(git config --file .gitmodules --get submodule.HEAR_Docker.url)
-#          PX4_COMMIT=$(git submodule status HEAR_Docker | awk '{print $1}' | sed 's/^-//')
-#                      echo "Repository URL: $HEAR_Docker_URL"
-#          echo "Commit hash: $PX4_COMMIT"
-#                      # Set outputs for use in next steps
-#          echo "url=$HEAR_Docker_URL" >> $GITHUB_OUTPUT
-#          echo "commit=$PX4_COMMIT" >> $GITHUB_OUTPUT
-#
-#
-#      - name: Checkout HEAR_Docker at specific commit
-#        run: |
-#          # Clone your specific HEAR_Docker repository and checkout exact commit
-#          rm -rf HEAR_Docker
-#          git clone https://${{ secrets.TOKEN }}@github.com/$(echo ${{ steps.submodule.outputs.url }} | sed 's|https://github.com/||g' | sed 's/\.git$//g').git HEAR_Docker
-#          cd HEAR_Docker
-#          git checkout ${{ steps.submodule.outputs.commit }}
-#          git submodule update --init --recursive
 
       # 🛠️ CLONE HEAR_Docker
       - name: Clone and HEAR_Docker repository
@@ -66,77 +40,96 @@ jobs:
             "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/HEAR_Docker.git" HEAR_Docker \
             || { echo "❌ Failed to clone HEAR_Docker repository"; exit 1; }
 
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           driver: docker-container
 
-      - name: Cache
+
+      - name: Define cache path
         uses: actions/cache@v4
         with:
           path: |
             hashim/docker/cache
           key: ${{ runner.os }}-hashim
-      - uses: aws-actions/configure-aws-credentials@v1
+
+      - name: aws credentials #---> [[ to be Deprecated ]]
+        uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
           role-session-name: GitHub-Action-Role
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Login to Amazon ECR
+      - name: Login to Amazon ECR #---> [[ to be Deprecated ]]
         id: login-pf-aws-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      # - name: Set up JDK 1.8
-      #   uses: actions/setup-java@v1
-      #   with:
-      #     java-version: 1.8
+      - name: login to DroneLeaf Docker registry
+        id: login-to-docker-registry
+        uses: docker/login-action@v3
+        with:
+          registry: docker.droneleaf.io
+          username: ${{ secrets.REG_USERNAME }} #---> should be configured on github repo settings
+          password: ${{ secrets.REG_PASSWORD }} #---> should be configured on github repo settings
+
 
       - name: chmod
         run: chmod -R +x ./.github
 
-      - name: Get Actor ID
+
+      - name: Get Actor ID #---> [[ there is no need to this step ]]
         id: get_actor_id
         run: |
              echo "::set-output name=actor_id::$(curl -s -H "Authorization: Bearer ${{ secrets.TOKEN }}" https://api.github.com/users/${{ github.actor }} | jq -r .id)"
 
-      - name: Expose GitHub Runtime
+
+      - name: Expose GitHub Runtime # loads GitHub’s runtime environment into the job(runtime API, service endpoints, tokens, paths) as env vars for upcoming steps.
         uses: crazy-max/ghaction-github-runtime@v3
       
-      - name: Env
-        run: |
-          # ACTIONS_RUNTIME_TOKEN, ACTIONS_RUNTIME_URL should be exposed
-          # env|sort
+
       - name: Cleanup existing builders
         run: |
           docker buildx ls
           docker buildx rm hashimBuilder || echo "Builder does not exist yet"
-          
-      - name: Build and push the tagged docker image to Amazon ECR
+
+
+      - name: Build and push the tagged docker image
         working-directory: ${{env.SOURCE_DIR}}
         env:
           ECR_REGISTRY: ${{ steps.login-pf-aws-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{secrets.AWS_ECR_REPO}}
+          DOCKER_REGISTRY: docker.droneleaf.io
           IMAGE_TAG: latest
           triggering_actor: ${{ github.triggering_actor }}
           TOKEN: ${{ secrets.TOKEN }}
           target_lower: ${{matrix.target_lower}}
+          docker_builder: hashimBuilder
+          build_platform: linux/arm64
         run: |
           echo ${{ github.triggering_actor }}
           echo "Building for TARGET: ${{ matrix.target }}"
-          docker buildx create --name hashimBuilder --driver=docker-container
+
           export BUILD_TIMESTAMP=$(date +%s)
-
           FULL_IMAGE_NAME="$ECR_REGISTRY/${ECR_REPOSITORY}_$target_lower:$IMAGE_TAG"
-          echo "Full image name: $FULL_IMAGE_NAME"
+          #FULL_IMAGE_NAME="$DOCKER_REGISTRY/docker/hear_fc_$target_lower:$IMAGE_TAG"
+          echo "Full image name: $FULL_IMAGE_NAME" # eg. docker.droneleaf.io/docker/hear_fc_orin:latest
 
-          echo " Start Building image for local use"
 
-          docker buildx build . --platform linux/arm64 \
+          docker buildx create --name $docker_builder --driver=docker-container
+
+          # 💎 1) for local use 
+          # ------------------
+          echo "Start Building image for local use"
+
+          docker buildx build . \
+          --builder=$docker_builder \
+          --platform $build_platform \
           -t hear_fc_${{ matrix.target_lower }}:latest \
-          --builder=hashimBuilder \
           --load \
           --cache-from type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache \
           --cache-to type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache,image-manifest=true,oci-mediatypes=true \
@@ -152,27 +145,22 @@ jobs:
           --build-arg COMPILE_BRANCH="dev" \
           --build-arg RANDOM_NUM="$BUILD_TIMESTAMP"
 
-          echo " Start Building image for ecr"
+          # 💎 2) for AWS ECR Registry
+          # -----------------------
+          echo "Start Building for AWS ECR Registry"
+
+
+          # 💎 3) for DoneLeaf Docker Registry
+          # --------------------------------
+          echo "Start Building for DroneLeaf Docker Registry"
           
-          
-          # docker buildx build . --platform linux/arm64 \
-          # -t $FULL_IMAGE_NAME \
-          # --builder=hashimBuilder \
-          # --push \
-          # --cache-from type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache \
-          # --cache-to type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache,mode=max,image-manifest=true,oci-mediatypes=true \
-          # --progress=plain \
-          # --secret id=GITHUB_ID,env=triggering_actor \
-          # --secret id=GITHUB_TOKEN,env=TOKEN \
-          # --build-arg TARGET_ORIN="${{ matrix.target == 'ORIN' && 'ON' || 'OFF' }}" \
-          # --build-arg TARGET="${{ matrix.target }}" \
-          # --build-arg opencv_url="geohashim/opencv:4.0.0" \
-          # --build-arg qt_url="geohashim/qt" \
-          # --build-arg USERNAME="hashim" \
-          # --build-arg WS_NAME="HEAR_FC" \
-          # --build-arg IS_PRODUCTION="TRUE" \
-          # --build-arg COMPILE_BRANCH="dev" \
-          # --build-arg RANDOM_NUM="$BUILD_TIMESTAMP"
+
+
+          # 🧹 cleanup docker builder
+          # -----------------------
+          docker buildx ls
+          docker buildx rm $docker_builder || echo "Builder does not exist yet"
+        
 
       - name: Extract folder from Docker container
         env:
@@ -180,13 +168,13 @@ jobs:
           ECR_REPOSITORY: ${{secrets.AWS_ECR_REPO}}
           IMAGE_TAG: latest
         run: |
-          # Create a container from the image we just built (but don't run it)
+          # Create a container from the image of local use we just built (but don't run it)
           CONTAINER_ID=$(docker create --platform linux/arm64 hear_fc_${{ matrix.target_lower }}:latest)
 
-          # Create a directory to hold the extracted files
+          # Create directories to hold the extracted files
           rm  -rf extracted_files_${{ matrix.target_lower }}
-          mkdir -p extracted_files_${{ matrix.target_lower }}
-          mkdir -p upm_extracted_files_${{ matrix.target_lower }}/HEAR_FC
+          mkdir -p extracted_files_${{ matrix.target_lower }} # --> contains /devel/lib/ only and will be compressed and attached to the release files
+          mkdir -p upm_extracted_files_${{ matrix.target_lower }}/HEAR_FC # --> used for the upcoming workflow
 
           # Copy the folder from the container to the host
           docker cp $CONTAINER_ID:/home/hashim/HEAR_FC/devel/lib ./extracted_files_${{ matrix.target_lower }}
@@ -196,11 +184,17 @@ jobs:
           docker rm $CONTAINER_ID
           ls -la extracted_files_${{ matrix.target_lower }}
 
-      - name: Compress extracted files
+          # Remove the image
+          docker rmi hear_fc_${{ matrix.target_lower }}
+
+
+      - name: Compress extracted files (to attach to the release artifacts later)
         run: |
           tar -czvf leaf_fc_${{ matrix.target_lower }}.tar.gz -C extracted_files_${{ matrix.target_lower }} .
+
           # List the content to verify
           tar -tvf leaf_fc_${{ matrix.target_lower }}.tar.gz | head -n 10
+
 
       - name: Upload folder as artifact
         uses: actions/upload-artifact@v4
@@ -208,75 +202,22 @@ jobs:
           name: extracted_files_${{ matrix.target_lower }}
           path: extracted_files_${{ matrix.target_lower }}
 
-      - name: Upload upm folder as artifact
+          
+      - name: Upload upm folder as artifact (used by upm_package_deploy_fc.yml workflow)
         uses: actions/upload-artifact@v4
         with:
           name: upm_extracted_files_${{ matrix.target_lower }}
           path: upm_extracted_files_${{ matrix.target_lower }}    
 
-      # - name: Create release tag
-      #   id: tag
-      #   if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
-      #   run: |
-      #     TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-      #     BRANCH_NAME=${GITHUB_REF#refs/heads/}
-      #     TAG_NAME="leaf_fc-build-${BRANCH_NAME}-${TIMESTAMP}"
-      #     echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
-      #     git tag $TAG_NAME
-      #     git push origin $TAG_NAME
-
-      # - name: Create GitHub Release
-      #   if: github.event_name == 'push'
-      #   uses: softprops/action-gh-release@v1
-      #   with:
-      #     files: |
-      #       leaf_fc_ORIN.tar.gz
-      #     tag_name: ${{ steps.tag.outputs.tag }}
-      #     name: LEAF FC Release ${{ steps.tag.outputs.tag }}
-      #     body: |
-      #       Stable LEAF FC Release
-      #       Commit: ${{ github.sha }}
-      #     draft: false
-      #     prerelease: false
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
       - name: Upload firmware to existing release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ steps.release_info.outputs.tag }}
           files: |
             leaf_fc_${{ matrix.target_lower }}.tar.gz
-          tag_name: ${{ steps.release_info.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
 
-
-      # - name: Build and Package Maven
-      #   id: package
-      #   working-directory: ${{ env.applicationfolder }}
-      #   run: $GITHUB_WORKSPACE/.github/scripts/build.sh
-
-      # - name: Upload Artifact to s3
-      #   working-directory: ${{ env.applicationfolder }}/target
-      #   run: aws s3 cp *.war s3://${{ env.S3BUCKET }}/
-        
-  # deploy:
-  #   needs: build
-  #   runs-on: ubuntu-latest
-  #   environment: Dev
-  #   permissions:
-  #     id-token: write
-  #     contents: read
-  #   steps:
-  #   - uses: actions/checkout@v2
-  #   - uses: aws-actions/configure-aws-credentials@v1
-  #     with:
-  #       role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
-  #       role-session-name: GitHub-Action-Role
-  #       aws-region: ${{ env.AWS_REGION }}
-  #   - run: |
-  #       echo "Deploying branch ${{ env.GITHUB_REF }} to ${{ github.event.inputs.environment }}"
-  #       commit_hash=`git rev-parse HEAD`
-  #       aws deploy create-deployment --application-name HearArchCodeDeploy --deployment-group-name HearArchCodeDeployGroupName --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash --ignore-application-stop-failures
