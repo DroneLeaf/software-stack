@@ -5,6 +5,7 @@ on:
     types:
       - completed
 
+
 jobs:
   process-extracted-files:
     runs-on: ubuntu-latest
