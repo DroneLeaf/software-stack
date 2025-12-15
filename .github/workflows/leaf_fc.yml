@@ -131,8 +131,8 @@ jobs:
           --platform $build_platform \
           -t hear_fc_${{ matrix.target_lower }}:latest \
           --load \
-          --cache-from type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache \
-          --cache-to type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache,image-manifest=true,oci-mediatypes=true \
+          --cache-from type=local,src=/tmp/.buildx-cache-${target} \
+          --cache-to type=local,src=/tmp/.buildx-cache-${target},mode=max \
           --secret id=GITHUB_ID,env=triggering_actor \
           --secret id=GITHUB_TOKEN,env=TOKEN \
           --build-arg TARGET_ORIN="${{ matrix.target == 'ORIN' && 'ON' || 'OFF' }}" \
