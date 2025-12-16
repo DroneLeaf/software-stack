@@ -438,7 +438,7 @@ jobs:
           REPO_NAME: ${{ matrix.REPO_NAME  }} # === HEAR_FC
           registry_username: ${{ secrets.registry_username }} # need to be configured
           registry_password: ${{ secrets.registry_password }} # need to be configured
-          registry_url: "https://repo.droneleaf.io/repository/apt/"
+          registry_url: "http://repo.droneleaf.io/repository/apt/"
         run: |
           echo "🔄 Cloning UPM repository for $TARGET processing..."
           
@@ -529,6 +529,8 @@ jobs:
 
           # 2) deploy to DroneLeaf apt repo [repo.droneleaf.io]:
           PACKAGE_ABSOLUTE_PATH=$(find $(pwd) -name "$target_upm_publish_name-$VERSION-$target_upm_profile_upper.deb")
+          echo -e "\n\nDeploying package: $PACKAGE_ABSOLUTE_PATH to repo.droneleaf.io via curl HTTP request...\n\n"
+          echo "157.241.132.209 repo.droneleaf.io" >> /etc/hosts
           curl -v -u ${{ env.registry_username }}:${{ env.registry_password }} \
           -H "Content-Type: multipart/form-data" \
           --data-binary "@${PACKAGE_ABSOLUTE_PATH}" "${{ env.registry_url }}"
