@@ -530,10 +530,9 @@ jobs:
           # 2) deploy to DroneLeaf apt repo [repo.droneleaf.io]:
           PACKAGE_ABSOLUTE_PATH=$(find $(pwd) -name "$target_upm_publish_name-$VERSION-$target_upm_profile_upper.deb")
           echo -e "\n\nDeploying package: $PACKAGE_ABSOLUTE_PATH to repo.droneleaf.io via curl HTTP request...\n\n"
-          echo "157.241.132.209 repo.droneleaf.io" >> /etc/hosts
           curl -v -u ${{ env.registry_username }}:${{ env.registry_password }} \
           -H "Content-Type: multipart/form-data" \
-          --data-binary "@${PACKAGE_ABSOLUTE_PATH}" "${{ env.registry_url }}"
+          --data-binary "@${PACKAGE_ABSOLUTE_PATH}" http://157.241.132.209:80/repository/apt/ -H "Host: repo.droneleaf.io"
 
 
 
