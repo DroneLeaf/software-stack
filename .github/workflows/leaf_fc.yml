@@ -551,7 +551,6 @@ jobs:
             echo "## 📋 PROCESSING SUMMARY"
             echo ''
             echo "### Job run ID: ${{ github.run_id }}"
-            echo "### Triggered by: ${{ github.event_name == 'push' ? github.event.head_commit.message : github.event_name }}"
             echo "### Triggering actor: ${{ github.triggering_actor }}"
             echo "### Branch: ${{ github.ref_name }}"
             echo "### Processing completed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
