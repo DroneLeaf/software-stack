@@ -59,35 +59,31 @@ jobs:
             hashim/docker/cache
           key: ${{ runner.os }}-hashim
 
-      - name: aws credentials #---> [[ to be Deprecated ]]
+      - name: aws credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
           role-session-name: GitHub-Action-Role
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Login to Amazon ECR #---> [[ to be Deprecated ]]
+      - name: Login to Amazon ECR
         id: login-pf-aws-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: true
 
       - name: login to DroneLeaf Docker registry
         id: login-to-docker-registry
         uses: docker/login-action@v3
         with:
           registry: docker.droneleaf.io
-          username: ${{ secrets.REG_USERNAME }} #---> should be configured on github repo settings
-          password: ${{ secrets.REG_PASSWORD }} #---> should be configured on github repo settings
+          username: ${{ secrets.REG_USERNAME }}
+          password: ${{ secrets.REG_PASSWORD }}
 
 
       - name: chmod
         run: chmod -R +x ./.github
 
-
-      - name: Get Actor ID #---> [[ there is no need to this step ]]
-        id: get_actor_id
-        run: |
-             # echo "::set-output name=actor_id::$(curl -s -H "Authorization: Bearer ${{ secrets.TOKEN }}" https://api.github.com/users/${{ github.actor }} | jq -r .id)"
-             echo "actor_id=$(curl -s -H "Authorization: Bearer ${{ secrets.TOKEN }}" https://api.github.com/users/${{ github.actor }} | jq -r .id)" >> $GITHUB_OUTPUT
 
       - name: Expose GitHub Runtime # loads GitHub’s runtime environment into the job(runtime API, service endpoints, tokens, paths) as env vars for upcoming steps.
         uses: crazy-max/ghaction-github-runtime@v3
@@ -117,8 +113,7 @@ jobs:
 
           export BUILD_TIMESTAMP=$(date +%s)
           FULL_IMAGE_NAME="$ECR_REGISTRY/${ECR_REPOSITORY}_$target_lower:$IMAGE_TAG"
-          #FULL_IMAGE_NAME="$DOCKER_REGISTRY/docker/hear_fc_$target_lower:$IMAGE_TAG"
-          echo "Full image name: $FULL_IMAGE_NAME" # eg. docker.droneleaf.io/docker/hear_fc_orin:latest
+          echo "Full image name: $FULL_IMAGE_NAME"
 
 
           docker buildx create --name $docker_builder --driver=docker-container
@@ -162,10 +157,6 @@ jobs:
         
 
       - name: Extract folder from Docker container
-        env:
-          ECR_REGISTRY: ${{ steps.login-pf-aws-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{secrets.AWS_ECR_REPO}}
-          IMAGE_TAG: latest
         run: |
           # Create a container from the image of local use we just built (but don't run it)
           CONTAINER_ID=$(docker create --platform linux/arm64 hear_fc_${{ matrix.target_lower }}:latest)
@@ -252,7 +243,9 @@ jobs:
       
       - name: Login to Amazon ECR implicitly via aws IAM role
         id: login-pf-aws-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: true
 
 
       # 🏷️ Extract version from release/tag
@@ -436,8 +429,8 @@ jobs:
           GH_TOKEN: ${{ secrets.TOKEN }}
           TARGET: ${{ matrix.target_lower  }} # === orin
           REPO_NAME: ${{ matrix.REPO_NAME  }} # === HEAR_FC
-          registry_username: ${{ secrets.registry_username }} # need to be configured
-          registry_password: ${{ secrets.registry_password }} # need to be configured
+          registry_username: ${{ secrets.registry_username }}
+          registry_password: ${{ secrets.registry_password }}
           registry_url: "http://repo.droneleaf.io/repository/apt/"
         run: |
           echo "🔄 Cloning UPM repository for $TARGET processing..."
