@@ -43,7 +43,11 @@ jobs:
           cp ${SOURCE_DIR}/qgroundcontrol.pro ${SOURCE_DIR}/qgroundcontrol.pro.bak
       
           # Comment out all lines referencing GStreamer.framework
-          sed -i '' 's|/Library/Frameworks/GStreamer.framework|#&|g' ${SOURCE_DIR}/qgroundcontrol.pro
+          find ${SOURCE_DIR} -type f \( -name '*.pro' -o -name '*.pri' \) -exec sed -i '' 's|/Library/Frameworks/GStreamer.framework|#&|g' {} +
+
+      - name: Patch Makefiles
+        run: |
+          find ${{ runner.temp }}/shadow_build_dir -name 'Makefile*' -exec sed -i '' 's|/Library/Frameworks/GStreamer.framework|#&|g' {} +
 
 
       - name: Install Qt
@@ -83,7 +87,7 @@ jobs:
 
       - name: Prepare ccache timestamp
         id: ccache_cache_timestamp
-        run: echo "timestamp=$(date --utc +'%Y-%m-%d-%H-%M-%S')" >> "$GITHUB_OUTPUT"
+        run: echo "timestamp=$(date +%Y-%m-%d-%H-%M-%S)" >> "$GITHUB_OUTPUT"
 
       - name: ccache cache files
         uses: actions/cache@v3
@@ -114,8 +118,19 @@ jobs:
               export LIBRARY_PATH="$(brew --prefix)/lib"
 
               qmake -r ${SOURCE_DIR}/qgroundcontrol.pro CONFIG+=installer CONFIG+=${BUILD_TYPE}
-              make -j$JOBS
 
+
+      - name: Patch Makefiles
+        working-directory: ${{ runner.temp }}/shadow_build_dir
+        run: |
+              find . -name 'Makefile*' -exec sed -i '' 's|/Library/Frameworks/GStreamer.framework|#&|g' {} +
+
+
+      - name: Make
+        working-directory: ${{ runner.temp }}/shadow_build_dir
+        run: make -j$JOBS
+
+        
       - name: ccache post-run
         run:  ccache -s
 
@@ -138,7 +153,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.FINAL_ARTIFACT }}
-          path: ${{ runner.temp }}/shadow_build_dir/package/$FINAL_ARTIFACT
+          path: ${{ runner.temp }}/shadow_build_dir/package/${{ env.FINAL_ARTIFACT }}
 
       - name: Publish artifact to GitHub release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}

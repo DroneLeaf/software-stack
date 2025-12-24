@@ -266,10 +266,13 @@ jobs:
           BASENAME="package${MATRIX_ARTIFACT%.apk}"
           FINAL_ARTIFACT="${BASENAME}-${LATEST_TAG}.apk"
           echo "FINAL_ARTIFACT=$FINAL_ARTIFACT" >> "$GITHUB_ENV"
-          ls
+          
+          ls ${{ runner.temp }}/shadow_build_dir/
           mv \
             "${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT }}" \
             "${{ runner.temp }}/shadow_build_dir/$FINAL_ARTIFACT"
+          echo "-------"
+          ls ${{ runner.temp }}/shadow_build_dir/
 
 
 
@@ -278,7 +281,7 @@ jobs:
         with:
           name: LeafMC Android builds
           path: |
-            ${{ runner.temp }}/shadow_build_dir/$FINAL_ARTIFACT
+            ${{ runner.temp }}/shadow_build_dir/${{ env.FINAL_ARTIFACT }}
         
 
 
