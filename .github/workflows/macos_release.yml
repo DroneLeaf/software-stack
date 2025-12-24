@@ -37,6 +37,15 @@ jobs:
         run: |
           git fetch --tags -f --depth 1
 
+      - name: Disable legacy GStreamer framework copy
+        run: |
+          # Backup original
+          cp ${SOURCE_DIR}/qgroundcontrol.pro ${SOURCE_DIR}/qgroundcontrol.pro.bak
+      
+          # Comment out all lines referencing GStreamer.framework
+          sed -i '' 's|/Library/Frameworks/GStreamer.framework|#&|g' ${SOURCE_DIR}/qgroundcontrol.pro
+
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
