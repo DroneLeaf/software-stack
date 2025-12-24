@@ -263,7 +263,7 @@ jobs:
         run: |
           MATRIX_ARTIFACT=${{ matrix.ARTIFACT }}
           BASENAME="package${MATRIX_ARTIFACT%.apk}"
-          FINAL_ARTIFACT=${BASENAME}-${LATEST_TAG}.apk"
+          FINAL_ARTIFACT="${BASENAME}-${LATEST_TAG}.apk"
           mv \
             "${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT }}" \
             "${{ runner.temp }}/shadow_build_dir/$FINAL_ARTIFACT"
