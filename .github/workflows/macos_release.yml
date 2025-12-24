@@ -106,20 +106,23 @@ jobs:
 
       - name: rename dmg with tag
         run: |
+          BASENAME="${ARTIFACT%.dmg}"
+          FINAL_ARTIFACT="${BASENAME}-${LATEST_TAG}.dmg"
+          echo "FINAL_ARTIFACT=$FINAL_ARTIFACT" >> "$GITHUB_ENV"
           mv \
-            "${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT }}" \
-            "${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT%.dmg }}-${{ env.LATEST_TAG }}.dmg"
+            "${{ runner.temp }}/shadow_build_dir/package/$ARTIFACT" \
+            "${{ runner.temp }}/shadow_build_dir/package/$FINAL_ARTIFACT"
 
 
       - name: Save artifact
         uses: actions/upload-artifact@4
         with:
           name: ${{ env.ARTIFACT }}
-          path: ${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT%.dmg }}-${{ env.LATEST_TAG }}.dmg
+          path: ${{ runner.temp }}/shadow_build_dir/package/$FINAL_ARTIFACT
 
       - name: Publish artifact to GitHub release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT%.dmg }}-${{ env.LATEST_TAG }}.dmg
+          gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/shadow_build_dir/package/$FINAL_ARTIFACT
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}

@@ -261,9 +261,12 @@ jobs:
 
       - name: rename apk with tag
         run: |
+          MATRIX_ARTIFACT=${{ matrix.ARTIFACT }}
+          BASENAME="package${MATRIX_ARTIFACT%.apk}"
+          FINAL_ARTIFACT=${BASENAME}-${LATEST_TAG}.apk"
           mv \
             "${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT }}" \
-            "${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT%.apk }}-${{ env.LATEST_TAG }}.apk"
+            "${{ runner.temp }}/shadow_build_dir/$FINAL_ARTIFACT"
 
 
 
@@ -272,7 +275,7 @@ jobs:
         with:
           name: LeafMC Android builds
           path: |
-            ${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT%.apk }}-${{ env.LATEST_TAG }}.apk
+            ${{ runner.temp }}/shadow_build_dir/$FINAL_ARTIFACT
         
           # it was: packageQGroundControl64.apk
           # ${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT }}
@@ -280,6 +283,6 @@ jobs:
       - name: Publish artifact to GitHub release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT%.apk }}-${{ env.LATEST_TAG }}.apk
+          gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/shadow_build_dir/$FINAL_ARTIFACT
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
