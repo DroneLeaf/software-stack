@@ -50,15 +50,21 @@ jobs:
 
       - name: Install Gstreamer
         run: |
+            #  method1:
             # wget https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-devel-1.18.6-x86_64.pkg
             # wget https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-1.18.6-x86_64.pkg
             # for package in *.pkg ;
               # do sudo installer -verbose -pkg "$package" -target /
             # done
-            wget -q --show-progress --timeout=60 --tries=3 https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-devel-1.18.6-x86_64.pkg
-            wget -q --show-progress --timeout=60 --tries=3 https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-1.18.6-x86_64.pkg
-            sudo installer -pkg gstreamer-1.0-devel-1.18.6-x86_64.pkg -target /
-            sudo installer -pkg gstreamer-1.0-1.18.6-x86_64.pkg -target /
+            # method2:
+            # wget -q --show-progress --timeout=60 --tries=3 https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-devel-1.18.6-x86_64.pkg
+            # wget -q --show-progress --timeout=60 --tries=3 https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-1.18.6-x86_64.pkg
+            # sudo installer -pkg gstreamer-1.0-devel-1.18.6-x86_64.pkg -target /
+            # sudo installer -pkg gstreamer-1.0-1.18.6-x86_64.pkg -target /
+            # method3:
+            # install GStreamer via Homebrew (arm64-native):
+            export HOMEBREW_NO_AUTO_UPDATE=1
+            brew install gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly glib pkg-config
 
 
       - name: Install ccache
@@ -68,7 +74,7 @@ jobs:
 
       - name: Prepare ccache timestamp
         id: ccache_cache_timestamp
-        run: echo "name=timestamp::$(date --utc +'%Y-%m-%d-%H\;%M\;%S')" >> $GITHUB_OUTPUT
+        run: echo "timestamp=$(date --utc +'%Y-%m-%d-%H-%M-%S')" >> "$GITHUB_OUTPUT"
 
       - name: ccache cache files
         uses: actions/cache@v3
@@ -93,6 +99,11 @@ jobs:
         working-directory: ${{ runner.temp }}/shadow_build_dir
         run:  |
               export JOBS=$((`sysctl -n hw.ncpu`+1))
+
+              export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:$(brew --prefix)/share/pkgconfig"
+              export CPATH="$(brew --prefix)/include"
+              export LIBRARY_PATH="$(brew --prefix)/lib"
+
               qmake -r ${SOURCE_DIR}/qgroundcontrol.pro CONFIG+=installer CONFIG+=${BUILD_TYPE}
               make -j$JOBS
 
@@ -115,9 +126,9 @@ jobs:
 
 
       - name: Save artifact
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARTIFACT }}
+          name: ${{ env.FINAL_ARTIFACT }}
           path: ${{ runner.temp }}/shadow_build_dir/package/$FINAL_ARTIFACT
 
       - name: Publish artifact to GitHub release
