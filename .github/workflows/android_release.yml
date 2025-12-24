@@ -253,12 +253,29 @@ jobs:
       - name: ccache post-run
         run:  ccache -s
 
-      - name: Save artifact
+      - name: get the latest tag for versioning
+        run: |
+          LATEST_TAG=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          echo "LATEST_TAG=$LATEST_TAG" >> "$GITHUB_ENV"
+
+
+      - name: rename apk with tag
+        run: |
+          mv \
+            "${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT }}" \
+            "${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT%.apk }}-${{ env.LATEST_TAG }}.apk"
+
+
+
+      - name: Save artifact # packageQGroundControl64-vX.Y.Z.apk
         uses: actions/upload-artifact@v4
         with:
           name: LeafMC Android builds
           path: |
-            ${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT }}
+            ${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT%.apk }}-${{ env.LATEST_TAG }}.apk
+        
+          # it was: packageQGroundControl64.apk
+          # ${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT }}
 
       - name: Publish artifact to GitHub release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
