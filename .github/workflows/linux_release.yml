@@ -198,15 +198,53 @@ jobs:
           ls -la build || echo "build directory not found"
           ls -la build/package || echo "build/package directory not found"
 
+
+      - name: get the latest tag for versioning
+        run: |
+          LATEST_TAG=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          echo "LATEST_TAG=$LATEST_TAG" >> "$GITHUB_ENV"
+
+
+      - name: rename apk with tag
+        run: |
+          ARTIFACT_NAME=${{ env.ARTIFACT }}
+          BASENAME="${ARTIFACT_NAME%.AppImage}"
+          FINAL_ARTIFACT="${BASENAME}-${LATEST_TAG}.AppImage"
+          echo "FINAL_ARTIFACT=$FINAL_ARTIFACT" >> "$GITHUB_ENV"
+
+          ls -la build/package/
+          mv \
+            build/package/${{ env.ARTIFACT }} \
+            build/package/$FINAL_ARTIFACT
+
+
+
       - name: Save artifact
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARTIFACT }}
-          path: build/package/${{ env.ARTIFACT }}
+          name: ${{ env.FINAL_ARTIFACT }}
+          path: build/package/${{ env.FINAL_ARTIFACT }}
 
       - name: Publish artifact to GitHub release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} build/package/${{ env.ARTIFACT }}
+          gh release upload ${{ github.event.release.tag_name }} build/package/${{ env.FINAL_ARTIFACT }}
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
+
+
+      - name: summary
+        run: |
+          {
+            echo "### 📋 PROCESSING SUMMARY"
+            echo ''
+            echo "#### Job run ID: ${{ github.run_id }}"
+            echo "#### Triggering actor: ${{ github.triggering_actor }}"
+            echo "#### Branch/Version: ${{ github.ref_name }}"
+            echo "#### Processing completed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo ''
+            echo '##### To download the package:'
+            echo 'visit: https://repo.droneleaf.io/download'
+            echo ''
+            echo "✅ Workflow completed successfully!"
+          } >> "$GITHUB_STEP_SUMMARY"
