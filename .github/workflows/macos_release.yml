@@ -3,10 +3,10 @@ name: MacOS Release
 on:
   workflow_dispatch:
 
-  # release:
-  #   types: [created]
-  #   paths-ignore:
-  #     - 'docs/**'
+  release:
+    types: [created]
+    paths-ignore:
+      - 'docs/**'
 
 
 
@@ -22,7 +22,8 @@ env:
 
 jobs:
   build:
-    runs-on:  macos-12
+    timeout-minutes: 120
+    runs-on:  macos-13
 
     steps:
       - name: Checkout repo
@@ -34,7 +35,7 @@ jobs:
       - name: Get all tags for correct version determination
         working-directory:  ${{ github.workspace }}/LeafMC
         run: |
-          git fetch --all --tags -f --depth 1
+          git fetch --tags -f --depth 1
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
@@ -49,14 +50,21 @@ jobs:
 
       - name: Install Gstreamer
         run: |
-            wget https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-devel-1.18.6-x86_64.pkg
-            wget https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-1.18.6-x86_64.pkg
-            for package in *.pkg ;
-              do sudo installer -verbose -pkg "$package" -target /
-            done
+            # wget https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-devel-1.18.6-x86_64.pkg
+            # wget https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-1.18.6-x86_64.pkg
+            # for package in *.pkg ;
+              # do sudo installer -verbose -pkg "$package" -target /
+            # done
+            wget -q --show-progress --timeout=60 --tries=3 https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-devel-1.18.6-x86_64.pkg
+            wget -q --show-progress --timeout=60 --tries=3 https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-1.18.6-x86_64.pkg
+            sudo installer -pkg gstreamer-1.0-devel-1.18.6-x86_64.pkg -target /
+            sudo installer -pkg gstreamer-1.0-1.18.6-x86_64.pkg -target /
+
 
       - name: Install ccache
-        run:  brew install ccache
+        run: |
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          brew install ccache
 
       - name: Prepare ccache timestamp
         id: ccache_cache_timestamp
@@ -92,7 +100,7 @@ jobs:
         run:  ccache -s
 
       - name: Save artifact
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@4
         with:
           name: ${{ env.ARTIFACT }}
           path: ${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT }}
