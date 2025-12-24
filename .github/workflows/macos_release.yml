@@ -37,13 +37,13 @@ jobs:
         run: |
           git fetch --tags -f --depth 1
 
-      - name: Disable legacy GStreamer framework copy
+      - name: Disable legacy GStreamer framework in post-link
         run: |
-          # Backup original
-          cp ${SOURCE_DIR}/qgroundcontrol.pro ${SOURCE_DIR}/qgroundcontrol.pro.bak
-      
-          # Comment out all lines referencing GStreamer.framework
-          find ${SOURCE_DIR} -type f \( -name '*.pro' -o -name '*.pri' \) -exec sed -i '' 's|/Library/Frameworks/GStreamer.framework|#&|g' {} +
+          cp ${SOURCE_DIR}/QGCPostLinkInstaller.pri ${SOURCE_DIR}/QGCPostLinkInstaller.pri.bak
+          sed -i '' 's|rsync -a --delete /Library/Frameworks/GStreamer.framework|#&|g' ${SOURCE_DIR}/QGCPostLinkInstaller.pri
+          sed -i '' 's|ln -sf .*GStreamer.framework/Versions/1.0/libexec/Frameworks|#&|g' ${SOURCE_DIR}/QGCPostLinkInstaller.pri
+          sed -i '' 's|install_name_tool -change /Library/Frameworks/GStreamer.framework.*|#&|g' ${SOURCE_DIR}/QGCPostLinkInstaller.pri
+          sed -i '' 's|rm -rf \$\${TARGET}.app/Contents/Frameworks/GStreamer.framework/Versions/1.0/.*|#&|g' ${SOURCE_DIR}/QGCPostLinkInstaller.pri
 
 
 
@@ -91,7 +91,7 @@ jobs:
         with:
           path:         ~/.ccache
           key:          ${{ runner.os }}-ccache-${{steps.ccache_cache_timestamp.outputs.timestamp}}
-          restore-keys: ${{ runner.os }}-ccache-
+          # restore-keys: ${{ runner.os }}-ccache-
 
       - name: Setup ccache
         run: |
@@ -115,17 +115,7 @@ jobs:
               export LIBRARY_PATH="$(brew --prefix)/lib"
 
               qmake -r ${SOURCE_DIR}/qgroundcontrol.pro CONFIG+=installer CONFIG+=${BUILD_TYPE}
-
-
-      - name: Patch Makefiles
-        working-directory: ${{ runner.temp }}/shadow_build_dir
-        run: |
-          find . -name 'Makefile*' -exec sed -i '' 's|/Library/Frameworks/GStreamer.framework|#&|g' {} +
-
-
-      - name: Make
-        working-directory: ${{ runner.temp }}/shadow_build_dir
-        run: make -j$JOBS
+              make -j$JOBS
 
         
       - name: ccache post-run
@@ -159,7 +149,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
-          
+
       - name: summary
         run: |
           {
