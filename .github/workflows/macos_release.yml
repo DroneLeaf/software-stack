@@ -99,15 +99,27 @@ jobs:
       - name: ccache post-run
         run:  ccache -s
 
+      - name: get the latest tag for versioning
+        run: |
+          LATEST_TAG=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          echo "LATEST_TAG=$LATEST_TAG" >> "$GITHUB_ENV"
+
+      - name: rename dmg with tag
+        run: |
+          mv \
+            "${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT }}" \
+            "${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT%.dmg }}-${{ env.LATEST_TAG }}.dmg"
+
+
       - name: Save artifact
         uses: actions/upload-artifact@4
         with:
           name: ${{ env.ARTIFACT }}
-          path: ${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT }}
+          path: ${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT%.dmg }}-${{ env.LATEST_TAG }}.dmg
 
       - name: Publish artifact to GitHub release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT }}
+          gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT%.dmg }}-${{ env.LATEST_TAG }}.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
