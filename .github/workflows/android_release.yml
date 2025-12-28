@@ -253,16 +253,57 @@ jobs:
       - name: ccache post-run
         run:  ccache -s
 
-      - name: Save artifact
+      - name: get the latest tag for versioning
+        run: |
+          LATEST_TAG=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          echo "LATEST_TAG=$LATEST_TAG" >> "$GITHUB_ENV"
+
+
+
+      - name: rename apk with tag
+        run: |
+          MATRIX_ARTIFACT=${{ matrix.ARTIFACT }}
+          BASENAME="package${MATRIX_ARTIFACT%.apk}"
+          FINAL_ARTIFACT="${BASENAME}-${LATEST_TAG}.apk"
+          echo "FINAL_ARTIFACT=$FINAL_ARTIFACT" >> "$GITHUB_ENV"
+
+          ls ${{ runner.temp }}/shadow_build_dir/
+          mv \
+            "${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT }}" \
+            "${{ runner.temp }}/shadow_build_dir/$FINAL_ARTIFACT"
+
+
+
+
+      - name: Save artifact # packageQGroundControl64-vX.Y.Z.apk
         uses: actions/upload-artifact@v4
         with:
           name: LeafMC Android builds
           path: |
-            ${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT }}
+            ${{ runner.temp }}/shadow_build_dir/${{ env.FINAL_ARTIFACT }}
+        
+
 
       - name: Publish artifact to GitHub release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/shadow_build_dir/package${{ matrix.ARTIFACT }}
+          gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/shadow_build_dir/$FINAL_ARTIFACT
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
+
+
+      - name: summary
+        run: |
+          {
+            echo "### 📋 PROCESSING SUMMARY"
+            echo ''
+            echo "#### Job run ID: ${{ github.run_id }}"
+            echo "#### Triggering actor: ${{ github.triggering_actor }}"
+            echo "#### Branch/Version: ${{ github.ref_name }}"
+            echo "#### Processing completed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo ''
+            echo '##### To download the package:'
+            echo 'visit: https://repo.droneleaf.io/download'
+            echo ''
+            echo "✅ Workflow completed successfully!"
+          } >> "$GITHUB_STEP_SUMMARY"

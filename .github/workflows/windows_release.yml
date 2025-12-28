@@ -1,10 +1,12 @@
 name: Windows Release
 
 on:
-  release:
-    types: [created]
-    paths-ignore:
-      - 'docs/**'
+  workflow_dispatch: # Manual trigger until resolve compilation issues
+
+  # release:
+  #   types: [created]
+  #   paths-ignore:
+  #     - 'docs/**'
 
 defaults:
   run:
@@ -18,7 +20,7 @@ env:
 
 jobs:
   build:
-    runs-on:  windows-2019
+    runs-on:  windows-latest
 
     steps:
       - name: Checkout repo
