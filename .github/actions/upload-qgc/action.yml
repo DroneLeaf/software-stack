@@ -1,0 +1,26 @@
+name: 'Upload QGC Artifacts'
+description: 'Upload an artifact to a remote server and update it'
+inputs:
+  artifact_type:
+    description: 'Artifact type (linux, android, macos, windows)'
+    required: true
+  artifact:
+    description: 'Artifact file path'
+    required: true
+  server:
+    description: 'Remote server IP or hostname'
+    required: true
+  ssh_private_key:
+    description: 'SSH private key (from GitHub secret)'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Run upload script
+      shell: bash
+      run: ./entrypoint.sh
+      env:
+        ARTIFACT_TYPE: ${{ inputs.artifact_type }}
+        ARTIFACT: ${{ inputs.artifact }}
+        SERVER: ${{ inputs.server }}
+        SSH_PRIVATE_KEY: ${{ inputs.ssh_private_key }}

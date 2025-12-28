@@ -19,7 +19,8 @@ env:
 jobs:
   build:
     runs-on: ubuntu-22.04
-
+    outputs:
+      ARTIFACT_TO_UPLOAD: ${{ steps.set_build_output.outputs.ARTIFACT_TO_UPLOAD }}
     strategy:
       matrix:
        include:
@@ -261,11 +262,13 @@ jobs:
 
 
       - name: rename apk with tag
+        id: set_build_output
         run: |
           MATRIX_ARTIFACT=${{ matrix.ARTIFACT }}
           BASENAME="package${MATRIX_ARTIFACT%.apk}"
           FINAL_ARTIFACT="${BASENAME}-${LATEST_TAG}.apk"
           echo "FINAL_ARTIFACT=$FINAL_ARTIFACT" >> "$GITHUB_ENV"
+          echo "ARTIFACT_TO_UPLOAD=$FINAL_ARTIFACT" >> "$GITHUB_OUTPUT"
 
           ls ${{ runner.temp }}/shadow_build_dir/
           mv \
@@ -307,3 +310,15 @@ jobs:
             echo ''
             echo "✅ Workflow completed successfully!"
           } >> "$GITHUB_STEP_SUMMARY"
+  upload:
+    needs: build
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/upload-qgc
+        with:
+          artifact_type: android
+          artifact: ${{ runner.temp }}/shadow_build_dir/${{ needs.build.outputs.ARTIFACT_TO_UPLOAD }}
+          server: ${{ secrets.REPO_SERVER_IP }}
+          ssh_private_key: ${{ secrets.REPO_SSH_KEY }}

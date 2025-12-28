@@ -24,7 +24,8 @@ jobs:
   build:
     timeout-minutes: 120
     runs-on:  macos-15
-
+    outputs:
+      ARTIFACT_TO_UPLOAD: ${{ steps.set_build_output.outputs.ARTIFACT_TO_UPLOAD }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -127,10 +128,13 @@ jobs:
           echo "LATEST_TAG=$LATEST_TAG" >> "$GITHUB_ENV"
 
       - name: rename dmg with tag
+        id: set_build_output
         run: |
           BASENAME="${ARTIFACT%.dmg}"
           FINAL_ARTIFACT="${BASENAME}-${LATEST_TAG}.dmg"
           echo "FINAL_ARTIFACT=$FINAL_ARTIFACT" >> "$GITHUB_ENV"
+          echo "ARTIFACT_TO_UPLOAD=$FINAL_ARTIFACT" >> "$GITHUB_OUTPUT"
+
           mv \
             "${{ runner.temp }}/shadow_build_dir/package/$ARTIFACT" \
             "${{ runner.temp }}/shadow_build_dir/package/$FINAL_ARTIFACT"
@@ -165,3 +169,15 @@ jobs:
             echo ''
             echo "✅ Workflow completed successfully!"
           } >> "$GITHUB_STEP_SUMMARY"
+  upload:
+    needs: build
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/upload-qgc
+        with:
+          artifact_type: macos
+          artifact: ${{ runner.temp }}/shadow_build_dir/package/${{ needs.build.outputs.ARTIFACT_TO_UPLOAD }}
+          server: ${{ secrets.REPO_SERVER_IP }}
+          ssh_private_key: ${{ secrets.REPO_SSH_KEY }}

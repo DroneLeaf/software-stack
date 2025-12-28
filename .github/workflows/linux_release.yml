@@ -18,7 +18,8 @@ env:
 jobs:
   build:
     runs-on: ubuntu-22.04
-
+    outputs:
+      ARTIFACT_TO_UPLOAD: ${{ steps.set_build_output.outputs.ARTIFACT_TO_UPLOAD }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -206,16 +207,18 @@ jobs:
 
 
       - name: rename apk with tag
+        id: set_build_output
         run: |
           ARTIFACT_NAME=${{ env.ARTIFACT }}
           BASENAME="${ARTIFACT_NAME%.AppImage}"
           FINAL_ARTIFACT="${BASENAME}-${LATEST_TAG}.AppImage"
           echo "FINAL_ARTIFACT=$FINAL_ARTIFACT" >> "$GITHUB_ENV"
+          echo "ARTIFACT_TO_UPLOAD=$FINAL_ARTIFACT" >> "$GITHUB_OUTPUT"
 
           ls -la build/package/
-          cp \
+          mv \
             build/package/${{ env.ARTIFACT }} \
-            /tmp/$FINAL_ARTIFACT
+            build/package/$FINAL_ARTIFACT
 
 
 
@@ -223,12 +226,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.FINAL_ARTIFACT }}
-          path: /tmp/${{ env.FINAL_ARTIFACT }}
+          path: build/package/${{ env.FINAL_ARTIFACT }}
 
       - name: Publish artifact to GitHub release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} /tmp/${{ env.FINAL_ARTIFACT }}
+          gh release upload ${{ github.event.release.tag_name }} build/package/${{ env.FINAL_ARTIFACT }}
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
@@ -248,3 +251,15 @@ jobs:
             echo ''
             echo "✅ Workflow completed successfully!"
           } >> "$GITHUB_STEP_SUMMARY"
+  upload:
+    needs: build
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/upload-qgc
+        with:
+          artifact_type: linux
+          artifact: build/package/${{ needs.build.outputs.ARTIFACT_TO_UPLOAD }}
+          server: ${{ secrets.REPO_SERVER_IP }}
+          ssh_private_key: ${{ secrets.REPO_SSH_KEY }}
