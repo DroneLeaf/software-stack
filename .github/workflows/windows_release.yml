@@ -1,10 +1,12 @@
 name: Windows Release
 
 on:
-  release:
-    types: [created]
-    paths-ignore:
-      - 'docs/**'
+  workflow_dispatch: # Manual trigger until resolve compilation issues
+
+  # release:
+  #   types: [created]
+  #   paths-ignore:
+  #     - 'docs/**'
 
 defaults:
   run:
@@ -18,8 +20,9 @@ env:
 
 jobs:
   build:
-    runs-on:  windows-2019
-
+    runs-on:  windows-latest
+    outputs:
+      ARTIFACT_TO_UPLOAD: ${{ steps.set_build_output.outputs.ARTIFACT_TO_UPLOAD }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -103,3 +106,20 @@ jobs:
           gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}\shadow_build_dir\staging\${{ env.ARTIFACT }}
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
+
+      - name: Set build output
+        id: set_build_output
+        run:  echo "ARTIFACT_TO_UPLOAD=$ARTIFACT" >> "$GITHUB_OUTPUT"
+
+  upload:
+    needs: build
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/upload-qgc
+        with:
+          artifact_type: windows
+          artifact: ${{ runner.temp }}\shadow_build_dir\staging\${{ needs.build.outputs.ARTIFACT_TO_UPLOAD }}
+          server: ${{ secrets.REPO_SERVER_IP }}
+          ssh_private_key: ${{ secrets.REPO_SSH_KEY }}
