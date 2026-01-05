@@ -216,7 +216,7 @@ jobs:
           echo "ARTIFACT_TO_UPLOAD=$FINAL_ARTIFACT" >> "$GITHUB_OUTPUT"
 
           ls -la build/package/
-          mv \
+          cp \
             build/package/${{ env.ARTIFACT }} \
             build/package/$FINAL_ARTIFACT
 
