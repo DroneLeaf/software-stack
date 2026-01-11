@@ -206,32 +206,34 @@ jobs:
           echo "LATEST_TAG=$LATEST_TAG" >> "$GITHUB_ENV"
 
 
-      - name: rename apk with tag
+      - name: rename AppImage with tag
         id: set_build_output
         run: |
-          ARTIFACT_NAME=${{ env.ARTIFACT }}
-          BASENAME="${ARTIFACT_NAME%.AppImage}"
-          FINAL_ARTIFACT="${BASENAME}-${LATEST_TAG}.AppImage"
-          echo "FINAL_ARTIFACT=$FINAL_ARTIFACT" >> "$GITHUB_ENV"
-          echo "ARTIFACT_TO_UPLOAD=$FINAL_ARTIFACT" >> "$GITHUB_OUTPUT"
+          ARTIFACT_NAME=${{ env.ARTIFACT }} # QGroundControl.AppImage
+          BASENAME="${ARTIFACT_NAME%.AppImage}" # QGroundControl
+          ARTIFACT_TO_UPLOAD="${BASENAME}-${LATEST_TAG}.AppImage" # QGroundControl-$LATEST_TAG.AppImage
+          echo "ARTIFACT_TO_UPLOAD=$ARTIFACT_TO_UPLOAD" >> $GITHUB_OUTPUT
+          echo "ARTIFACT_TO_UPLOAD=$ARTIFACT_TO_UPLOAD" >> $GITHUB_ENV
 
+          mkdir -p ${{ runner.temp }}/build/package/
           ls -la build/package/
+          ls -la ${{ runner.temp }}build/package/
           cp \
             build/package/${{ env.ARTIFACT }} \
-            build/package/$FINAL_ARTIFACT
+            ${{ runner.temp }}/build/package/$ARTIFACT_TO_UPLOAD
 
 
 
       - name: Save artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.FINAL_ARTIFACT }}
-          path: build/package/${{ env.FINAL_ARTIFACT }}
+          name: ${{ steps.set_build_output.outputs.ARTIFACT_TO_UPLOAD }}
+          path: ${{ runner.temp }}/build/package/$ARTIFACT_TO_UPLOAD
 
       - name: Publish artifact to GitHub release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} build/package/${{ env.FINAL_ARTIFACT }}
+          gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/build/package/$ARTIFACT_TO_UPLOAD
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
@@ -260,6 +262,6 @@ jobs:
       - uses: ./.github/actions/upload-qgc
         with:
           artifact_type: linux
-          artifact: build/package/${{ needs.build.outputs.ARTIFACT_TO_UPLOAD }}
+          artifact: ${{ runner.temp }}/build/package/${{ needs.build.outputs.ARTIFACT_TO_UPLOAD }}
           server: ${{ secrets.REPO_SERVER_IP }}
           ssh_private_key: ${{ secrets.REPO_SSH_KEY }}
