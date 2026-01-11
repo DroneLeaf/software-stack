@@ -18,7 +18,7 @@ runs:
   steps:
     - name: Run upload script
       shell: bash
-      run: ./entrypoint.sh
+      run: ${{ github.action_path }}/entrypoint.sh
       env:
         ARTIFACT_TYPE: ${{ inputs.artifact_type }}
         ARTIFACT: ${{ inputs.artifact }}
