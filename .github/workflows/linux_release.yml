@@ -259,9 +259,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Get the build artifact from the build job
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.ARTIFACT_TO_UPLOAD }}
+          path: build/package/
       - uses: ./.github/actions/upload-qgc
         with:
           artifact_type: linux
-          artifact: ${{ runner.temp }}/build/package/${{ needs.build.outputs.ARTIFACT_TO_UPLOAD }}
+          artifact: build/package/${{ needs.build.outputs.ARTIFACT_TO_UPLOAD }}
           server: ${{ secrets.REPO_SERVER_IP }}
           ssh_private_key: ${{ secrets.REPO_SSH_KEY }}
