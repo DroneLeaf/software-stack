@@ -217,7 +217,7 @@ jobs:
 
           mkdir -p ${{ runner.temp }}/build/package/
           ls -la build/package/
-          ls -la ${{ runner.temp }}build/package/
+          ls -la ${{ runner.temp }}/build/package/
           cp \
             build/package/${{ env.ARTIFACT }} \
             ${{ runner.temp }}/build/package/$ARTIFACT_TO_UPLOAD
