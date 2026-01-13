@@ -1,14 +1,11 @@
-name: LEAF_FC ARM Libs
+# name: LEAF_FC ARM Libs
+name: LEAF_FC ARM Build and Deploy
 
 on:
-  # workflow_dispatch: {}
-  # push:
-  #   branches: [ "dev" ]
   release:
     types: [created]
 
 env:
-  applicationfolder: src
   SOURCE_DIR:   ${{ github.workspace }}/HEAR_Docker
 
 
@@ -26,32 +23,10 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v2
-        name: Checkout Repository
+      - name: Checkout repository
+        uses: actions/checkout@v2
         with:
           token: ${{ secrets.TOKEN }}
-
-#      - name: Get HEAR_Docker submodule info
-#        id: submodule
-#        run: |
-#          # Extract the repository URL and commit hash from the .gitmodules and git index
-#          HEAR_Docker_URL=$(git config --file .gitmodules --get submodule.HEAR_Docker.url)
-#          PX4_COMMIT=$(git submodule status HEAR_Docker | awk '{print $1}' | sed 's/^-//')
-#                      echo "Repository URL: $HEAR_Docker_URL"
-#          echo "Commit hash: $PX4_COMMIT"
-#                      # Set outputs for use in next steps
-#          echo "url=$HEAR_Docker_URL" >> $GITHUB_OUTPUT
-#          echo "commit=$PX4_COMMIT" >> $GITHUB_OUTPUT
-#
-#
-#      - name: Checkout HEAR_Docker at specific commit
-#        run: |
-#          # Clone your specific HEAR_Docker repository and checkout exact commit
-#          rm -rf HEAR_Docker
-#          git clone https://${{ secrets.TOKEN }}@github.com/$(echo ${{ steps.submodule.outputs.url }} | sed 's|https://github.com/||g' | sed 's/\.git$//g').git HEAR_Docker
-#          cd HEAR_Docker
-#          git checkout ${{ steps.submodule.outputs.commit }}
-#          git submodule update --init --recursive
 
       # 🛠️ CLONE HEAR_Docker
       - name: Clone and HEAR_Docker repository
@@ -66,20 +41,26 @@ jobs:
             "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/HEAR_Docker.git" HEAR_Docker \
             || { echo "❌ Failed to clone HEAR_Docker repository"; exit 1; }
 
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           driver: docker-container
 
-      - name: Cache
+
+      - name: Define cache path
         uses: actions/cache@v4
         with:
           path: |
             hashim/docker/cache
           key: ${{ runner.os }}-hashim
-      - uses: aws-actions/configure-aws-credentials@v1
+
+      - name: aws credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
           role-session-name: GitHub-Action-Role
@@ -87,59 +68,65 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-pf-aws-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: true
 
-      # - name: Set up JDK 1.8
-      #   uses: actions/setup-java@v1
-      #   with:
-      #     java-version: 1.8
+      - name: login to DroneLeaf Docker registry
+        id: login-to-docker-registry
+        uses: docker/login-action@v3
+        with:
+          registry: docker.droneleaf.io
+          username: ${{ secrets.REG_USERNAME }}
+          password: ${{ secrets.REG_PASSWORD }}
+
 
       - name: chmod
         run: chmod -R +x ./.github
 
-      - name: Get Actor ID
-        id: get_actor_id
-        run: |
-             echo "::set-output name=actor_id::$(curl -s -H "Authorization: Bearer ${{ secrets.TOKEN }}" https://api.github.com/users/${{ github.actor }} | jq -r .id)"
 
-      - name: Expose GitHub Runtime
+      - name: Expose GitHub Runtime # loads GitHub’s runtime environment into the job(runtime API, service endpoints, tokens, paths) as env vars for upcoming steps.
         uses: crazy-max/ghaction-github-runtime@v3
       
-      - name: Env
-        run: |
-          # ACTIONS_RUNTIME_TOKEN, ACTIONS_RUNTIME_URL should be exposed
-          # env|sort
+
       - name: Cleanup existing builders
         run: |
           docker buildx ls
           docker buildx rm hashimBuilder || echo "Builder does not exist yet"
-          
-      - name: Build and push the tagged docker image to Amazon ECR
+
+
+      - name: Build Leaf_fc under docker container environment
         working-directory: ${{env.SOURCE_DIR}}
         env:
           ECR_REGISTRY: ${{ steps.login-pf-aws-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{secrets.AWS_ECR_REPO}}
+          DOCKER_REGISTRY: docker.droneleaf.io
           IMAGE_TAG: latest
           triggering_actor: ${{ github.triggering_actor }}
           TOKEN: ${{ secrets.TOKEN }}
           target_lower: ${{matrix.target_lower}}
+          docker_builder: hashimBuilder
+          build_platform: linux/arm64
         run: |
           echo ${{ github.triggering_actor }}
           echo "Building for TARGET: ${{ matrix.target }}"
-          docker buildx create --name hashimBuilder --driver=docker-container
-          export BUILD_TIMESTAMP=$(date +%s)
 
+          export BUILD_TIMESTAMP=$(date +%s)
           FULL_IMAGE_NAME="$ECR_REGISTRY/${ECR_REPOSITORY}_$target_lower:$IMAGE_TAG"
           echo "Full image name: $FULL_IMAGE_NAME"
 
-          echo " Start Building image for local use"
 
-          docker buildx build . --platform linux/arm64 \
+          docker buildx create --name $docker_builder --driver=docker-container
+
+          # 💎 1) for local use 
+          # ------------------
+          echo "Start Building image for local use"
+
+          docker buildx build . \
+          --builder=$docker_builder \
+          --platform $build_platform \
           -t hear_fc_${{ matrix.target_lower }}:latest \
-          --builder=hashimBuilder \
           --load \
-          --cache-from type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache \
-          --cache-to type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache,image-manifest=true,oci-mediatypes=true \
           --secret id=GITHUB_ID,env=triggering_actor \
           --secret id=GITHUB_TOKEN,env=TOKEN \
           --build-arg TARGET_ORIN="${{ matrix.target == 'ORIN' && 'ON' || 'OFF' }}" \
@@ -152,41 +139,32 @@ jobs:
           --build-arg COMPILE_BRANCH="dev" \
           --build-arg RANDOM_NUM="$BUILD_TIMESTAMP"
 
-          echo " Start Building image for ecr"
+          # 💎 2) for AWS ECR Registry
+          # -----------------------
+          # echo "Start Building for AWS ECR Registry"
+
+
+          # 💎 3) for DoneLeaf Docker Registry
+          # --------------------------------
+          # echo "Start Building for DroneLeaf Docker Registry"
           
-          
-          # docker buildx build . --platform linux/arm64 \
-          # -t $FULL_IMAGE_NAME \
-          # --builder=hashimBuilder \
-          # --push \
-          # --cache-from type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache \
-          # --cache-to type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:${{ matrix.target_lower }}-cache,mode=max,image-manifest=true,oci-mediatypes=true \
-          # --progress=plain \
-          # --secret id=GITHUB_ID,env=triggering_actor \
-          # --secret id=GITHUB_TOKEN,env=TOKEN \
-          # --build-arg TARGET_ORIN="${{ matrix.target == 'ORIN' && 'ON' || 'OFF' }}" \
-          # --build-arg TARGET="${{ matrix.target }}" \
-          # --build-arg opencv_url="geohashim/opencv:4.0.0" \
-          # --build-arg qt_url="geohashim/qt" \
-          # --build-arg USERNAME="hashim" \
-          # --build-arg WS_NAME="HEAR_FC" \
-          # --build-arg IS_PRODUCTION="TRUE" \
-          # --build-arg COMPILE_BRANCH="dev" \
-          # --build-arg RANDOM_NUM="$BUILD_TIMESTAMP"
+
+
+          # 🧹 cleanup docker builder
+          # -----------------------
+          docker buildx ls
+          docker buildx rm $docker_builder || echo "Builder does not exist yet"
+        
 
       - name: Extract folder from Docker container
-        env:
-          ECR_REGISTRY: ${{ steps.login-pf-aws-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{secrets.AWS_ECR_REPO}}
-          IMAGE_TAG: latest
         run: |
-          # Create a container from the image we just built (but don't run it)
+          # Create a container from the image of local use we just built (but don't run it)
           CONTAINER_ID=$(docker create --platform linux/arm64 hear_fc_${{ matrix.target_lower }}:latest)
 
-          # Create a directory to hold the extracted files
+          # Create directories to hold the extracted files
           rm  -rf extracted_files_${{ matrix.target_lower }}
-          mkdir -p extracted_files_${{ matrix.target_lower }}
-          mkdir -p upm_extracted_files_${{ matrix.target_lower }}/HEAR_FC
+          mkdir -p extracted_files_${{ matrix.target_lower }} # --> contains /devel/lib/ only and will be compressed and attached to the release files
+          mkdir -p upm_extracted_files_${{ matrix.target_lower }}/HEAR_FC # --> used for the upcoming workflow
 
           # Copy the folder from the container to the host
           docker cp $CONTAINER_ID:/home/hashim/HEAR_FC/devel/lib ./extracted_files_${{ matrix.target_lower }}
@@ -196,11 +174,17 @@ jobs:
           docker rm $CONTAINER_ID
           ls -la extracted_files_${{ matrix.target_lower }}
 
-      - name: Compress extracted files
+          # Remove the image
+          docker rmi hear_fc_${{ matrix.target_lower }}
+
+
+      - name: Compress extracted files (to attach to the release artifacts later)
         run: |
           tar -czvf leaf_fc_${{ matrix.target_lower }}.tar.gz -C extracted_files_${{ matrix.target_lower }} .
+
           # List the content to verify
           tar -tvf leaf_fc_${{ matrix.target_lower }}.tar.gz | head -n 10
+
 
       - name: Upload folder as artifact
         uses: actions/upload-artifact@v4
@@ -208,75 +192,369 @@ jobs:
           name: extracted_files_${{ matrix.target_lower }}
           path: extracted_files_${{ matrix.target_lower }}
 
-      - name: Upload upm folder as artifact
+          
+      - name: Upload upm folder as artifact (used by upm_package_deploy_fc.yml workflow)
         uses: actions/upload-artifact@v4
         with:
           name: upm_extracted_files_${{ matrix.target_lower }}
           path: upm_extracted_files_${{ matrix.target_lower }}    
 
-      # - name: Create release tag
-      #   id: tag
-      #   if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
-      #   run: |
-      #     TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-      #     BRANCH_NAME=${GITHUB_REF#refs/heads/}
-      #     TAG_NAME="leaf_fc-build-${BRANCH_NAME}-${TIMESTAMP}"
-      #     echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
-      #     git tag $TAG_NAME
-      #     git push origin $TAG_NAME
-
-      # - name: Create GitHub Release
-      #   if: github.event_name == 'push'
-      #   uses: softprops/action-gh-release@v1
-      #   with:
-      #     files: |
-      #       leaf_fc_ORIN.tar.gz
-      #     tag_name: ${{ steps.tag.outputs.tag }}
-      #     name: LEAF FC Release ${{ steps.tag.outputs.tag }}
-      #     body: |
-      #       Stable LEAF FC Release
-      #       Commit: ${{ github.sha }}
-      #     draft: false
-      #     prerelease: false
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
       - name: Upload firmware to existing release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ github.event.release.tag_name }}
           files: |
             leaf_fc_${{ matrix.target_lower }}.tar.gz
-          tag_name: ${{ steps.release_info.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
+  deploy:
+    needs: [build]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: ORIN
+            target_lower: orin
+            target_upm_package_name: leaf_fc
+            target_upm_publish_name: leaf-fc
+            target_upm_profile: orin_release
+            target_upm_profile_upper: ORIN-Release
+            REPO_NAME: HEAR_FC
+
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+    # if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via aws IAM role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
+          role-session-name: GitHub-Action-Role
+          aws-region: ${{ vars.AWS_REGION }}
+
+      
+      - name: Login to Amazon ECR implicitly via aws IAM role
+        id: login-pf-aws-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: true
 
 
+      # 🏷️ Extract version from release/tag
+      - name: Extract version from release
+        id: extract_version
+        run: |
+          echo "🏷️ Extracting version from triggering workflow..."
+          
+          # Method 1: From triggering workflow's head branch (if it's a release branch)
+          # BRANCH_NAME="${{ github.event.workflow_run.head_branch }}"
+          BRANCH_NAME="${{ github.ref_name }}"
+          echo "Source branch: $BRANCH_NAME"
+          
+          # Method 2: From triggering workflow's tag (if available)
+          # Get the commit SHA from the triggering workflow
+          # COMMIT_SHA="${{ github.event.workflow_run.head_sha }}"
+          COMMIT_SHA="${{ github.sha }}"
+          echo "Source commit: $COMMIT_SHA"
+          
+          # Try to find a tag associated with this commit
+          git fetch --tags
+          TAG_NAME=$(git tag --points-at $COMMIT_SHA | head -1)
+          echo "Found tag: $TAG_NAME"
+          
+          # Extract version from various sources
+          VERSION=""
+          
+          # Priority 1: Git tag (v1.0.0, 1.0.0, release-1.0.0, etc.)
+          if [ -n "$TAG_NAME" ]; then
+            VERSION=$(echo "$TAG_NAME" | sed -E 's/^(v|release-|rel-)?([0-9]+\.[0-9]+\.[0-9]+).*$/\2/')
+            echo "Version from tag: $VERSION"
+          fi
+          
+          # Priority 2: Release branch name (release/1.0.0, rel-1.0.0, etc.)
+          if [ -z "$VERSION" ] && [[ "$BRANCH_NAME" =~ release|rel ]]; then
+            VERSION=$(echo "$BRANCH_NAME" | sed -E 's/.*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+            echo "Version from branch: $VERSION"
+          fi
+          
+          # Priority 3: Check latest GitHub release (most of the cases)
+          if [ -z "$VERSION" ]; then
+            echo "Checking latest GitHub release..."
+            LATEST_RELEASE=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name // empty')
+            if [ -n "$LATEST_RELEASE" ]; then
+              VERSION=$(echo "$LATEST_RELEASE" | sed -E 's/^(v|release-|rel-)?([0-9]+\.[0-9]+\.[0-9]+).*$/\2/')
+              echo "Version from latest release: $VERSION"
+            fi
+          fi
+          
+          # Priority 4: Extract from package.json or version file (if exists)
+          if [ -z "$VERSION" ] && [ -f "package.json" ]; then
+            VERSION=$(jq -r '.version // empty' package.json)
+            echo "Version from package.json: $VERSION"
+          fi
+          
+          # Priority 5: Default fallback with timestamp
+          if [ -z "$VERSION" ]; then
+            VERSION="0.0.$(date +%Y%m%d)"
+            echo "Using fallback version: $VERSION"
+          fi
+          
+          # Validate version format
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "⚠️ Invalid version format: $VERSION"
+            VERSION="0.0.1"
+            echo "Using default version: $VERSION"
+          fi
+          
+          echo "✅ Final version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+      
+      
+      - name: Download ${{ matrix.target }} extracted files
+        uses: actions/download-artifact@v4
+        with:
+          name: upm_extracted_files_${{ matrix.target_lower }}
+          path: ./artifacts/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # run-id: ${{ github.event.workflow_run.id }}
 
-      # - name: Build and Package Maven
-      #   id: package
-      #   working-directory: ${{ env.applicationfolder }}
-      #   run: $GITHUB_WORKSPACE/.github/scripts/build.sh
 
-      # - name: Upload Artifact to s3
-      #   working-directory: ${{ env.applicationfolder }}/target
-      #   run: aws s3 cp *.war s3://${{ env.S3BUCKET }}/
+      - name: Verify downloads
+        run: |
+          echo "Verifying downloaded artifacts..."
+          
+          if [ -d "./artifacts" ]; then
+            echo "✅ Successfully downloaded artifacts for $target"
+            echo "📁 Directory contents:"
+            ls -laR "./artifacts/"
+            echo ""
+          else
+            echo "❌ No artifacts found for $target"
+          fi
+     
+     
+      # 🔐 GPG SETUP SECTION
+      - name: Setup GPG for package signing
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "🔐 Setting up GPG for package signing..."
+          
+          # Check if GPG is installed
+          if ! command -v gpg >/dev/null 2>&1; then
+            echo "📦 Installing GPG..."
+            sudo apt-get update
+            sudo apt-get install -y gnupg2
+          fi
+          
+          # Verify GPG secrets are available
+          if [ -z "$GPG_PRIVATE_KEY" ]; then
+            echo "❌ GPG_PRIVATE_KEY secret not found"
+            echo "Please add your GPG private key to repository secrets"
+            exit 1
+          fi
+          
+          # Import GPG private key
+          echo "🔑 Importing GPG private key..."
+          echo "$GPG_PRIVATE_KEY" | base64 -d | gpg --batch --import
+          
+          # Set up GPG trust and configuration
+          echo "🔧 Configuring GPG..."
+          
+          # Get the key ID
+          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep sec | awk '{print $2}' | cut -d'/' -f2 | head -1)
+          echo "GPG Key ID: $GPG_KEY_ID"
+          
+          # Trust the key ultimately
+          echo -e "5\ny\n" | gpg --batch --command-fd 0 --expert --edit-key $GPG_KEY_ID trust
+          
+          # Configure git for GPG signing (if needed)
+          git config --global user.signingkey $GPG_KEY_ID
+          git config --global commit.gpgsign false  # Disable git commit signing for CI
+          
+          # Test GPG signing
+          echo "🧪 Testing GPG signing..."
+          echo "test" | gpg --batch --yes --passphrase "$GPG_PASSPHRASE" --armor --detach-sig --sign
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ GPG signing test successful"
+          else
+            echo "❌ GPG signing test failed"
+            exit 1
+          fi
+          
+          # Set environment variables for later steps
+          echo "GPG_KEY_ID=$GPG_KEY_ID" >> $GITHUB_ENV
+          echo "GNUPGHOME=$HOME/.gnupg" >> $GITHUB_ENV
+      
+      
+      # 🛠️ CLONE HEAR_Docker
+      - name: Clone and HEAR_Docker repository
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          echo "🔄 Cloning HEAR_Docker repository ..."
+          # Clone repository with shallow clone for better performance
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/HEAR_Docker.git" HEAR_Docker \
+            || { echo "❌ Failed to clone HEAR_Docker repository"; exit 1; }
         
-  # deploy:
-  #   needs: build
-  #   runs-on: ubuntu-latest
-  #   environment: Dev
-  #   permissions:
-  #     id-token: write
-  #     contents: read
-  #   steps:
-  #   - uses: actions/checkout@v2
-  #   - uses: aws-actions/configure-aws-credentials@v1
-  #     with:
-  #       role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
-  #       role-session-name: GitHub-Action-Role
-  #       aws-region: ${{ env.AWS_REGION }}
-  #   - run: |
-  #       echo "Deploying branch ${{ env.GITHUB_REF }} to ${{ github.event.inputs.environment }}"
-  #       commit_hash=`git rev-parse HEAD`
-  #       aws deploy create-deployment --application-name HearArchCodeDeploy --deployment-group-name HearArchCodeDeployGroupName --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash --ignore-application-stop-failures
+        
+      # 🛠️ CLONE HEAR_CLI
+      - name: Clone and HEAR_CLI repository
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          echo "🔄 Cloning HEAR_CLI repository ..."
+          # Clone repository with shallow clone for better performance
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/HEAR_CLI.git" HEAR_CLI \
+            || { echo "❌ Failed to clone HEAR_CLI repository"; exit 1; }
+      
+      
+      # 🛠️ CLONE AND CONFIGURE UPM REPOSITORY , SETUP UPM CLI
+      - name: Clone and configure UPM repository
+        id: upm
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+          TARGET: ${{ matrix.target_lower  }} # === orin
+          REPO_NAME: ${{ matrix.REPO_NAME  }} # === HEAR_FC
+          registry_username: ${{ secrets.registry_username }}
+          registry_password: ${{ secrets.registry_password }}
+          registry_url: "http://repo.droneleaf.io/repository/apt/"
+        run: |
+          echo "🔄 Cloning UPM repository for $TARGET processing..."
+          
+          # Clone repository with shallow clone for better performance
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/UPM.git" UPM \
+            || { echo "❌ Failed to clone repository"; exit 1; }
+          
+          cd UPM
+          
+          # Verify required files exist
+          [ -f "upm.yaml" ] || { echo "❌ upm.yaml not found"; exit 1; }
+          
+          # Install yq if needed
+          if ! command -v yq >/dev/null 2>&1; then
+            sudo wget -qO /usr/local/bin/yq \
+              https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+            sudo chmod +x /usr/local/bin/yq
+          fi
+          
+          # Generate the correct workspace configuration
+          WORKSPACE_PATH="/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/artifacts/$REPO_NAME/$REPO_NAME"
+          # Verify workspace exists
+          [ -d "$WORKSPACE_PATH" ] || { 
+            echo "❌ Workspace not found: $WORKSPACE_PATH"
+            ls -la "$(dirname "$WORKSPACE_PATH")" || true
+            exit 1
+          }
+          
+          # Backup configuration file (upm.yaml)
+          cp upm.yaml upm.yaml.backup
+
+          # update configuration for leaf_fc
+          # ----------------------------------
+          # 1) Update workspace configuration to be /home/runner/work/software-stack/software-stack/artifacts/HEAR_FC/HEAR_FC
+          yq eval ".packages.${{ matrix.target_upm_package_name }}.build.workspace = \"$WORKSPACE_PATH\"" -i upm.yaml
+
+          # 2) Update version configuration to be the collected VERSION (earlier step)
+          yq eval ".packages.${{ matrix.target_upm_package_name }}.version = \"$VERSION\"" -i upm.yaml
+          
+          # Verify updated configuration and rollback to original upm.yaml in case of errors
+          UPDATED_PATH=$(yq eval '.packages.${{ matrix.target_upm_package_name }}.build.workspace' upm.yaml)
+          if [ "$UPDATED_PATH" != "$WORKSPACE_PATH" ]; then
+            echo "❌ Configuration update failed"
+            mv upm.yaml.backup upm.yaml
+            exit 1
+          fi
+          
+          # replace every occurrence of "/home/medo/projects/HEAR_CLI" in upm.yaml file to "/home/runner/work/software-stack/software-stack/HEAR_CLI"
+          sed -i "s|/home/medo/projects/HEAR_CLI|/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/HEAR_CLI|g" upm.yaml
+          
+          # replace every occurrence of "/home/medo/HEAR_Docker" in upm.yaml file to "/home/runner/work/software-stack/software-stack/HEAR_Docker"
+          sed -i "s|/home/medo/HEAR_Docker|/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/HEAR_Docker|g" upm.yaml
+          
+          # cat upm.yaml
+          yq '.packages.${{ matrix.target_upm_package_name }}' upm.yaml
+          
+          echo "✅ UPM repository configured successfully"
+          echo "🎯 Target: $TARGET"
+          echo "📂 Workspace: $WORKSPACE_PATH"
+          echo "📁 Files in workspace: $(find "$WORKSPACE_PATH" -type f | wc -l)"
+
+
+          # Install UPM dependencies
+          cd upm # === cd /home/runner/work/software-stack/software-stack/UPM/upm/
+          pip install -r requirements.txt
+          cd ..
+          
+          
+          
+          # Run UPM commands with proper GPG setup:
+          # ----------------------------------------
+          # 📦 PACKAGEING DEB:
+          # ----------------------------------------
+          echo "🚀 Running UPM package command..."
+          GPG_TTY=$(tty) ./upm_cli package ${{ matrix.target_upm_package_name }} ${{ matrix.target_upm_profile }} deb
+
+
+          # ----------------------------------------
+          # 📤 DEPLOYING APT:
+          # ----------------------------------------
+          echo "🚀 Running UPM deploy command with GPG signing..."
+          target_upm_profile_upper=${{matrix.target_upm_profile_upper}}
+          target_upm_publish_name=${{matrix.target_upm_publish_name}}
+
+          # 1) deploy to leaf_apt_repo [apt.droneleaf.io]:
+          GPG_TTY=$(tty) ./upm_cli deploy ${{ matrix.target_upm_package_name }} dist/$target_upm_publish_name-$VERSION-$target_upm_profile_upper.deb leaf_apt_repo
+
+          # 2) deploy to DroneLeaf apt repo [repo.droneleaf.io]:
+          PACKAGE_ABSOLUTE_PATH=$(find $(pwd) -name "$target_upm_publish_name-$VERSION-$target_upm_profile_upper.deb")
+          echo -e "\n\nDeploying package: $PACKAGE_ABSOLUTE_PATH to repo.droneleaf.io via curl HTTP request...\n\n"
+          curl -v -u ${{ env.registry_username }}:${{ env.registry_password }} \
+          -H "Content-Type: multipart/form-data" \
+          --data-binary "@${PACKAGE_ABSOLUTE_PATH}" http://157.241.132.209:80/repository/apt/ -H "Host: repo.droneleaf.io"
+
+
+
+
+          # 📑 Count total files processed (for build summary)
+          total_files=0
+          if [ -d "./artifacts" ]; then
+            count=$(find "./artifacts/" -type f | wc -l)
+            echo "$target: $count files"
+            total_files=$((total_files + count))
+          fi
+          echo $total_files
+          echo "TOTAL_FILES=$total_files" >> "$GITHUB_OUTPUT"
+
+      - name: build summary
+        run: |
+          {
+            echo "### 📋 PROCESSING SUMMARY"
+            echo ''
+            echo "#### Job run ID: ${{ github.run_id }}"
+            echo "#### Triggering actor: ${{ github.triggering_actor }}"
+            echo "#### Branch/Version: ${{ github.ref_name }}"
+            echo "#### Processing completed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo ''
+            echo '##### To download the package:'
+            echo '```bash'
+            echo "sudo apt update"
+            echo "sudo apt install leaf-fc -y"
+            echo '```'
+            echo ''
+            echo "✅ Workflow completed successfully!"
+          } >> "$GITHUB_STEP_SUMMARY"
