@@ -508,7 +508,7 @@ jobs:
           echo -e "\n\nDeploying package: $PACKAGE_ABSOLUTE_PATH to repo.droneleaf.io via curl HTTP request...\n\n"
           curl -v -u ${{ env.registry_username }}:${{ env.registry_password }} \
           -H "Content-Type: multipart/form-data" \
-          --data-binary "@${PACKAGE_ABSOLUTE_PATH}" http://157.241.132.209:80/repository/apt/ -H "Host: repo.droneleaf.io"
+          --data-binary "@${PACKAGE_ABSOLUTE_PATH}" http://18.158.175.125:80/repository/apt/ -H "Host: repo.droneleaf.io"
 
 
 
