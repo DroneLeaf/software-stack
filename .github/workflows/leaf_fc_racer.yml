@@ -1,9 +1,10 @@
 # name: LEAF_FC ARM Libs
-name: LEAF_FC ARM Build and Deploy
+name: LEAF_FC RACER ARM Build and Deploy
 
 on:
-  release:
-    types: [created]
+#   release:
+#     types: [created]
+  workflow_dispatch:
 
 env:
   SOURCE_DIR: ${{ github.workspace }}/HEAR_Docker
@@ -14,8 +15,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - target: ORIN
-            target_lower: orin
           - target: RPI
             target_lower: rpi
     permissions:
@@ -50,13 +49,6 @@ jobs:
         with:
           driver: docker-container
 
-      # - name: Define cache path
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: |
-      #       hashim/docker/cache
-      #     key: ${{ runner.os }}-hashim
-
       - name: aws credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -89,7 +81,7 @@ jobs:
           docker buildx ls
           #docker buildx rm hashimBuilder || echo "Builder does not exist yet"
 
-      - name: Build Leaf_fc under docker container environment
+      - name: Build Leaf_fc_racer under docker container environment
         working-directory: ${{env.SOURCE_DIR}}
         env:
           ECR_REGISTRY: ${{ steps.login-pf-aws-ecr.outputs.registry }}
@@ -119,9 +111,9 @@ jobs:
           docker buildx build . \
           --builder=$docker_builder \
           --platform $build_platform \
-          --cache-from type=registry,ref=ghcr.io/droneleaf/software-stack:leaf-fc-cache \
-          --cache-to type=registry,ref=ghcr.io/droneleaf/software-stack:leaf-fc-cache,mode=max \
-          -t hear_fc_${{ matrix.target_lower }}:latest \
+          --cache-from type=registry,ref=ghcr.io/droneleaf/software-stack:leaf-fc-racer-cache \
+          --cache-to type=registry,ref=ghcr.io/droneleaf/software-stack:leaf-fc-racer-cache,mode=max \
+          -t hear_fc_racer_${{ matrix.target_lower }}:latest \
           --load \
           --secret id=GITHUB_ID,env=triggering_actor \
           --secret id=GITHUB_TOKEN,env=TOKEN \
@@ -135,16 +127,6 @@ jobs:
           --build-arg COMPILE_BRANCH="dev" \
           --build-arg RANDOM_NUM="$BUILD_TIMESTAMP"
 
-          # 💎 2) for AWS ECR Registry
-          # -----------------------
-          # echo "Start Building for AWS ECR Registry"
-
-
-          # 💎 3) for DoneLeaf Docker Registry
-          # --------------------------------
-          # echo "Start Building for DroneLeaf Docker Registry"
-
-
 
           # 🧹 cleanup docker builder
           # -----------------------
@@ -153,43 +135,43 @@ jobs:
 
       - name: Extract folder from Docker container
         run: |
-          # Create a container from the image of local use we just built (but don't run it)
-          CONTAINER_ID=$(docker create --platform linux/arm64 hear_fc_${{ matrix.target_lower }}:latest)
+          # Create a temp container to collect libs from (but don't run it)
+          CONTAINER_ID=$(docker create --platform linux/arm64 hear_fc_racer_${{ matrix.target_lower }}:latest)
 
           # Create directories to hold the extracted files
-          rm  -rf extracted_files_${{ matrix.target_lower }}
-          mkdir -p extracted_files_${{ matrix.target_lower }} # --> contains /devel/lib/ only and will be compressed and attached to the release files
-          mkdir -p upm_extracted_files_${{ matrix.target_lower }}/HEAR_FC # --> used for the upcoming workflow
+          rm  -rf extracted_files_racer_${{ matrix.target_lower }}
+          mkdir -p extracted_files_racer_${{ matrix.target_lower }} # --> contains /devel/lib/ only and will be compressed and attached to the release files
+          mkdir -p upm_extracted_files_racer_${{ matrix.target_lower }}/HEAR_FC # --> used for the upcoming workflow
 
           # Copy the folder from the container to the host
-          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC/devel/lib ./extracted_files_${{ matrix.target_lower }}
-          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC ./upm_extracted_files_${{ matrix.target_lower }}/HEAR_FC
+          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC/devel/lib ./extracted_files_racer_${{ matrix.target_lower }}
+          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC ./upm_extracted_files_racer_${{ matrix.target_lower }}/HEAR_FC
 
           # Remove the container
           docker rm $CONTAINER_ID
-          ls -la extracted_files_${{ matrix.target_lower }}
+          ls -la extracted_files_racer_${{ matrix.target_lower }}
 
           # Remove the image
-          docker rmi hear_fc_${{ matrix.target_lower }}
+          docker rmi hear_fc_racer_${{ matrix.target_lower }}
 
       - name: Compress extracted files (to attach to the release artifacts later)
         run: |
-          tar -czvf leaf_fc_${{ matrix.target_lower }}.tar.gz -C extracted_files_${{ matrix.target_lower }} .
+          tar -czvf leaf_fc_racer_${{ matrix.target_lower }}.tar.gz -C extracted_files_racer_${{ matrix.target_lower }} .
 
           # List the content to verify
-          tar -tvf leaf_fc_${{ matrix.target_lower }}.tar.gz | head -n 10
+          tar -tvf leaf_fc_racer_${{ matrix.target_lower }}.tar.gz | head -n 10
 
       - name: Upload folder as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: extracted_files_${{ matrix.target_lower }}
-          path: extracted_files_${{ matrix.target_lower }}
+          name: extracted_files_racer_${{ matrix.target_lower }}
+          path: extracted_files_racer_${{ matrix.target_lower }}
 
       - name: Upload upm folder as artifact (used by upm_package_deploy_fc.yml workflow)
         uses: actions/upload-artifact@v4
         with:
-          name: upm_extracted_files_${{ matrix.target_lower }}
-          path: upm_extracted_files_${{ matrix.target_lower }}
+          name: upm_extracted_files_racer_${{ matrix.target_lower }}
+          path: upm_extracted_files_racer_${{ matrix.target_lower }}
 
       - name: Upload firmware to existing release
         if: github.event_name == 'release'
@@ -197,7 +179,7 @@ jobs:
         with:
           tag_name: ${{ github.event.release.tag_name }}
           files: |
-            leaf_fc_${{ matrix.target_lower }}.tar.gz
+            leaf_fc_racer_${{ matrix.target_lower }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
   deploy:
@@ -206,19 +188,18 @@ jobs:
     strategy:
       matrix:
         include:
-          - target: ORIN
-            target_lower: orin
-            target_upm_package_name: leaf_fc
-            target_upm_publish_name: leaf-fc
-            target_upm_profile: orin_release
-            target_upm_profile_upper: ORIN-Release
+          - target: RPI
+            target_lower: rpi
+            target_upm_package_name: leaf_fc_racer
+            target_upm_publish_name: leaf-fc-racer
+            target_upm_profile: rpi_release
+            target_upm_profile_upper: RPI-Release
             REPO_NAME: HEAR_FC
 
     permissions:
       id-token: write
       contents: read
       actions: read
-    # if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: checkout repository
@@ -310,10 +291,10 @@ jobs:
       - name: Download ${{ matrix.target }} extracted files
         uses: actions/download-artifact@v4
         with:
-          name: upm_extracted_files_${{ matrix.target_lower }}
+          name: upm_extracted_files_racer_${{ matrix.target_lower }}
           path: ./artifacts/
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # run-id: ${{ github.event.workflow_run.id }}
+
 
       - name: Verify downloads
         run: |
@@ -536,7 +517,7 @@ jobs:
             echo '##### To download the package:'
             echo '```bash'
             echo "sudo apt update"
-            echo "sudo apt install leaf-fc -y"
+            echo "sudo apt install leaf-fc-racer -y"
             echo '```'
             echo ''
             echo "✅ Workflow completed successfully!"
