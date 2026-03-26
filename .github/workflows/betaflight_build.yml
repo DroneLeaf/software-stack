@@ -1,3 +1,6 @@
+# Version: 2026.6.0-alpha
+# MCU Family: STM32F7X2
+# Target: SKYSTARSF7HDPRO
 name: Build Betaflight Firmware (STM32H7)
 
 on:
@@ -15,10 +18,11 @@ jobs:
     strategy:
       matrix:
         target:
-          - MATEKH743
-          - MATEKH743SLIM
-          - MATEKH743HD
-          - SPEEDYBEEF7V3
+        #   - MATEKH743
+        #   - MATEKH743SLIM
+        #   - MATEKH743HD
+        #   - SPEEDYBEEF7V3
+          - SKYSTARSF7HDPRO
 
     steps:
       - name: Checkout repository
