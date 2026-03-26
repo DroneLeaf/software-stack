@@ -2,8 +2,9 @@
 name: LEAF_FC ARM Build and Deploy
 
 on:
-  release:
-    types: [created]
+  # release:
+  #   types: [created]
+  workflow_dispatch:
 
 env:
   SOURCE_DIR: ${{ github.workspace }}/HEAR_Docker
