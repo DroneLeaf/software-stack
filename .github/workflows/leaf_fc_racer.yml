@@ -146,6 +146,8 @@ jobs:
         run: |
           # Create a temp container to collect libs from (but don't run it)
           #CONTAINER_ID=$(docker create --platform linux/arm64 hear_fc_racer_${{ matrix.target_lower }}:latest)
+
+          IMAGE_NAME=ghcr.io/droneleaf/software-stack/leaf-fc-racer-cache:latest
           CONTAINER_ID=$(docker create --platform linux/arm64 $IMAGE_NAME)
 
           # Create directories to hold the extracted files
