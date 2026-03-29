@@ -1,0 +1,107 @@
+# Version: 2026.6.0-alpha
+# MCU Family: STM32F7X2
+# Target: SKYSTARSF7HDPRO
+name: Build Betaflight Firmware
+
+on:
+  release:
+    types: [created]
+
+
+jobs:
+  firmware:
+    if: contains(github.event.release.name, 'racer')
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: betaflight
+
+    strategy:
+      matrix:
+        target:
+          - SKYSTARSF7HDPRO
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Sync submodules
+        run: git submodule update --init --recursive
+        working-directory: .
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential git curl clang python3 python3-pip
+
+      - name: Install ARM toolchain
+        run: make arm_sdk_install
+
+      - name: Prepare configs
+        run: make configs
+
+      - name: Clean build
+        run: make clean
+
+      - name: Build firmware
+        run: make ${{ matrix.target }}
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: betaflight-${{ matrix.target }}
+          path: betaflight/obj/betaflight_${{ matrix.target }}.*
+
+      - name: Attach firmware to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: betaflight/obj/betaflight_${{ matrix.target }}.*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sitl:
+    if: contains(github.event.release.name, 'racer')
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: betaflight
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Sync submodules
+        run: git submodule update --init --recursive
+        working-directory: .
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential git curl clang python3 python3-pip
+
+      - name: Clean build
+        run: make clean
+
+      - name: Build SITL
+        run: make TARGET=SITL
+
+      - name: Upload SITL artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: betaflight-SITL
+          path: betaflight/obj/main/betaflight_SITL*
+
+      - name: Attach SITL to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: betaflight/obj/main/betaflight_SITL*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
