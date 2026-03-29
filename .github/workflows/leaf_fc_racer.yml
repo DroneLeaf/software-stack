@@ -456,7 +456,7 @@ jobs:
 
           # 4) replace every occurrence of "/home/medo" in upm.yaml file to "/home/runner/work/software-stack/software-stack"
           # this to update all the absolute paths in the configuration to point to the correct workspace and files in the current runner environment
-          sed -i "s|/home/medo|/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}|g" upm.yaml
+          # sed -i "s|/home/medo|/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}|g" upm.yaml
 
           # Verify updated configuration and rollback to original upm.yaml in case of errors
           UPDATED_PATH=$(yq eval '.packages.${{ matrix.target_upm_package_name }}.build.workspace' upm.yaml)
