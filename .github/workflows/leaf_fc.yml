@@ -120,8 +120,6 @@ jobs:
           docker buildx build . \
           --builder=$docker_builder \
           --platform $build_platform \
-          --cache-from type=registry,ref=ghcr.io/droneleaf/software-stack:leaf-fc-cache \
-          --cache-to type=registry,ref=ghcr.io/droneleaf/software-stack:leaf-fc-cache,mode=max \
           -t hear_fc_${{ matrix.target_lower }}:latest \
           --load \
           --secret id=GITHUB_ID,env=triggering_actor \
