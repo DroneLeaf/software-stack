@@ -391,7 +391,7 @@ jobs:
         id: upm
         env:
           GH_TOKEN: ${{ secrets.TOKEN }}
-          TARGET: ${{ matrix.target_lower  }} # === orin
+          TARGET: ${{ matrix.target_lower  }} # === rpi
           REPO_NAME: ${{ matrix.REPO_NAME  }} # === HEAR_FC
           registry_username: ${{ secrets.registry_username }}
           registry_password: ${{ secrets.registry_password }}
@@ -418,6 +418,7 @@ jobs:
 
           # Generate the correct workspace configuration
           WORKSPACE_PATH="/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/artifacts/$REPO_NAME/$REPO_NAME"
+          #WORKSPACE_PATH="/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/artifacts/${REPO_NAME}"
           # Verify workspace exists
           [ -d "$WORKSPACE_PATH" ] || { 
             echo "❌ Workspace not found: $WORKSPACE_PATH"
@@ -435,6 +436,13 @@ jobs:
 
           # 2) Update version configuration to be the collected VERSION (earlier step)
           yq eval ".packages.${{ matrix.target_upm_package_name }}.version = \"$VERSION\"" -i upm.yaml
+
+          # 3) Update profile configuration to be rpi_release (for leaf_fc_racer)
+          yq eval ".packages.${{ matrix.target_upm_package_name }}.build.profile = \"${{ matrix.target_upm_profile }}\"" -i upm.yaml
+
+          # 4) replace every occurrence of "/home/medo" in upm.yaml file to "/home/runner/work/software-stack/software-stack"
+          # this to update all the absolute paths in the configuration to point to the correct workspace and files in the current runner environment
+          sed -i "s|/home/medo|/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}|g" upm.yaml
 
           # Verify updated configuration and rollback to original upm.yaml in case of errors
           UPDATED_PATH=$(yq eval '.packages.${{ matrix.target_upm_package_name }}.build.workspace' upm.yaml)
@@ -471,6 +479,7 @@ jobs:
           # 📦 PACKAGEING DEB:
           # ----------------------------------------
           echo "🚀 Running UPM package command..."
+          # ./upm_cli package leaf_fc_racer rpi_release deb
           GPG_TTY=$(tty) ./upm_cli package ${{ matrix.target_upm_package_name }} ${{ matrix.target_upm_profile }} deb
 
 
@@ -482,6 +491,7 @@ jobs:
           target_upm_publish_name=${{matrix.target_upm_publish_name}}
 
           # 1) deploy to leaf_apt_repo [apt.droneleaf.io]:
+          # ./upm_cli deploy leaf_fc_racer dist/leaf-fc-racer-$VERSION-RPI-Release.deb leaf_apt_repo
           GPG_TTY=$(tty) ./upm_cli deploy ${{ matrix.target_upm_package_name }} dist/$target_upm_publish_name-$VERSION-$target_upm_profile_upper.deb leaf_apt_repo
 
           # 2) deploy to DroneLeaf apt repo [repo.droneleaf.io]:
