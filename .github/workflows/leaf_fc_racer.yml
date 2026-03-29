@@ -62,6 +62,13 @@ jobs:
         with:
           mask-password: true
 
+      - name: Login to GitHub Container Registry (GHCR) to enable the caching
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: login to DroneLeaf Docker registry
         id: login-to-docker-registry
         uses: docker/login-action@v3
@@ -108,16 +115,17 @@ jobs:
           # ------------------
           echo "Start Building image for local use"
 
+          IMAGE_NAME=ghcr.io/droneleaf/software-stack/leaf-fc-racer-cache:latest
+
           docker buildx build . \
           --builder=$docker_builder \
           --platform $build_platform \
           --cache-from type=registry,ref=ghcr.io/droneleaf/software-stack:leaf-fc-racer-cache \
           --cache-to type=registry,ref=ghcr.io/droneleaf/software-stack:leaf-fc-racer-cache,mode=max \
-          -t hear_fc_racer_${{ matrix.target_lower }}:latest \
+          -t $IMAGE_NAME \
           --load \
           --secret id=GITHUB_ID,env=triggering_actor \
           --secret id=GITHUB_TOKEN,env=TOKEN \
-          --build-arg TARGET_ORIN="${{ matrix.target == 'ORIN' && 'ON' || 'OFF' }}" \
           --build-arg TARGET="${{ matrix.target }}" \
           --build-arg opencv_url="geohashim/opencv:4.0.0" \
           --build-arg qt_url="geohashim/qt" \
@@ -136,7 +144,8 @@ jobs:
       - name: Extract folder from Docker container
         run: |
           # Create a temp container to collect libs from (but don't run it)
-          CONTAINER_ID=$(docker create --platform linux/arm64 hear_fc_racer_${{ matrix.target_lower }}:latest)
+          #CONTAINER_ID=$(docker create --platform linux/arm64 hear_fc_racer_${{ matrix.target_lower }}:latest)
+          CONTAINER_ID=$(docker create --platform linux/arm64 $IMAGE_NAME)
 
           # Create directories to hold the extracted files
           rm  -rf extracted_files_racer_${{ matrix.target_lower }}
@@ -152,7 +161,8 @@ jobs:
           ls -la extracted_files_racer_${{ matrix.target_lower }}
 
           # Remove the image
-          docker rmi hear_fc_racer_${{ matrix.target_lower }}
+          #docker rmi hear_fc_racer_${{ matrix.target_lower }}
+          docker rmi $IMAGE_NAME
 
       - name: Compress extracted files (to attach to the release artifacts later)
         run: |
