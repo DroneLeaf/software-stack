@@ -10,6 +10,7 @@ on:
 
 jobs:
   firmware:
+    if: contains(github.event.release.name, 'racer')
     runs-on: ubuntu-latest
 
     defaults:
@@ -63,6 +64,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   sitl:
+    if: contains(github.event.release.name, 'racer')
     runs-on: ubuntu-latest
 
     defaults:
