@@ -2,10 +2,10 @@
 name: Android 32/64-bit Release
 
 on:
-  # release:
-  #   types: [created]
-  #   paths-ignore:
-  #     - 'docs/**'
+  release:
+    types: [created]
+    paths-ignore:
+      - 'docs/**'
   workflow_dispatch:
 
 defaults:
