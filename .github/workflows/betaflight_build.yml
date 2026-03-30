@@ -91,6 +91,9 @@ jobs:
           sudo apt update
           sudo apt install -y build-essential git curl clang python3 python3-pip
 
+      - name: Install ARM toolchain
+        run: make arm_sdk_install
+
       - name: Clean build
         run: make clean TARGET=SITL || true
 
