@@ -23,3 +23,7 @@
 [submodule "HEAR_Docker"]
 	path = HEAR_Docker
 	url = https://github.com/DroneLeaf/HEAR_Docker.git
+[submodule "betaflight"]
+	path = betaflight
+	url = https://github.com/DroneLeaf/betaflight.git
+	branch = master
