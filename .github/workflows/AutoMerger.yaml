@@ -17,6 +17,12 @@ jobs:
           submodules: recursive
           token: ${{ secrets.TOKEN }}
           fetch-depth: 0
+
+      - name: Disable Git commit graph
+        run: |
+          echo ""
+          #git config --global core.commitGraph false
+
       - name: Configure Git
         run: |
           git config --global user.name "github-actions[bot]"
@@ -41,6 +47,8 @@ jobs:
             # Fetch latest updates
             git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
             git fetch --all
+            git commit-graph verify || true
+            git commit-graph write --reachable || true
             git branch -r | grep -q $BASE_BRANCH || echo "Base branch fetch failed"
             git branch -r | grep -q $HEAD_BRANCH || echo "Head branch fetch failed"
 
@@ -69,7 +77,12 @@ jobs:
               fi
 
               if ! git merge origin/$HEAD_BRANCH --allow-unrelated-histories --no-edit; then
-                echo "❌ Merge conflict detected in $SUBMODULE_PATH/$BASE_BRANCH. Aborting process!"
+                echo "Failed. Checking reason..."
+                if git status --porcelain | grep -q "^UU"; then
+                  echo "❌ Merge conflict detected in $SUBMODULE_PATH"
+                else
+                  echo "❌ Unknown reason for merge failure in $SUBMODULE_PATH"
+                fi
                 exit 1  # Stop the entire workflow if a conflict occurs
               fi
 
