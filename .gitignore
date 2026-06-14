@@ -10,6 +10,7 @@
 **/*.bag
 # colcon
 log/
+install/
 .vscode/
 HEAR_FC/src/CMakeLists.txt
 HEAR_FC/.catkin_workspace
