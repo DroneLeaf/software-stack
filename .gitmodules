@@ -27,3 +27,6 @@
 	path = betaflight
 	url = https://github.com/DroneLeaf/betaflight.git
 	branch = master
+[submodule "leaf-PX4-Autopilot"]
+	path = leaf-PX4-Autopilot
+	url = https://github.com/DroneLeaf/Leaf-PX4-Autopilot.git
