@@ -117,17 +117,19 @@ jobs:
           # ------------------
           echo "Start Building image for local use"
 
+          # Switch to Dockerfile.unified
+          # I removed --build-arg opencv_url / qt_url lines.
           docker buildx build . \
           --builder=$docker_builder \
           --platform $build_platform \
+          --file Dockerfile.unified \
           -t hear_fc_${{ matrix.target_lower }}:latest \
           --load \
           --secret id=GITHUB_ID,env=triggering_actor \
           --secret id=GITHUB_TOKEN,env=TOKEN \
+          --build-arg UBUNTU_VERSION=20.04 \
           --build-arg TARGET_ORIN="${{ matrix.target == 'ORIN' && 'ON' || 'OFF' }}" \
           --build-arg TARGET="${{ matrix.target }}" \
-          --build-arg opencv_url="geohashim/opencv:4.0.0" \
-          --build-arg qt_url="geohashim/qt" \
           --build-arg USERNAME="hashim" \
           --build-arg WS_NAME="HEAR_FC" \
           --build-arg IS_PRODUCTION="TRUE" \

@@ -118,18 +118,20 @@ jobs:
 
           IMAGE_NAME=ghcr.io/droneleaf/software-stack/leaf-fc-racer-cache:latest
 
+          # Switch to Dockerfile.unified
+          # I removed --build-arg opencv_url / qt_url lines.
           docker buildx build . \
           --builder=$docker_builder \
           --platform $build_platform \
+          --file Dockerfile.unified \
           --cache-from type=registry,ref=ghcr.io/droneleaf/software-stack:leaf-fc-racer-cache \
           --cache-to type=registry,ref=ghcr.io/droneleaf/software-stack:leaf-fc-racer-cache,mode=max \
           -t $IMAGE_NAME \
           --load \
           --secret id=GITHUB_ID,env=triggering_actor \
           --secret id=GITHUB_TOKEN,env=TOKEN \
+          --build-arg UBUNTU_VERSION=20.04 \
           --build-arg TARGET="${{ matrix.target }}" \
-          --build-arg opencv_url="geohashim/opencv:4.0.0" \
-          --build-arg qt_url="geohashim/qt" \
           --build-arg USERNAME="hashim" \
           --build-arg WS_NAME="HEAR_FC" \
           --build-arg IS_PRODUCTION="TRUE" \

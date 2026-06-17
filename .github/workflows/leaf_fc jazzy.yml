@@ -114,11 +114,12 @@ jobs:
           docker buildx build . \
           --builder=$docker_builder \
           --platform $build_platform \
-          --file Dockerfile_jazzy \
+          --file Dockerfile.unified \
           -t hear_fc_jazzy_${{ matrix.target_lower }}:latest \
           --load \
           --secret id=GITHUB_ID,env=triggering_actor \
           --secret id=GITHUB_TOKEN,env=TOKEN \
+          --build-arg UBUNTU_VERSION=24.04 \
           --build-arg TARGET="${{ matrix.target }}" \
           --build-arg USERNAME="hashim" \
           --build-arg WS_NAME="HEAR_FC" \
