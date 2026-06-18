@@ -11,12 +11,11 @@ env:
 
 jobs:
   build:
+    if: contains(github.event.release.name, 'ros2')
     runs-on: Linux_ARM64_16core
     strategy:
       matrix:
         include:
-          - target: ORIN
-            target_lower: orin
           - target: RPI
             target_lower: rpi
 
@@ -189,16 +188,17 @@ jobs:
   
   deploy:
     needs: [build]
+    if: contains(github.event.release.name, 'ros2')
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - target: ORIN
-            target_lower: orin
-            target_upm_package_name: leaf_fc_jazzy
-            target_upm_publish_name: leaf-fc-jazzy
-            target_upm_profile: orin_release
-            target_upm_profile_upper: ORIN-Release
+          - target: RPI
+            target_lower: rpi
+            target_upm_package_name: leaf_fc_ros2
+            target_upm_publish_name: leaf-fc-ros2
+            target_upm_profile: rpi_release
+            target_upm_profile_upper: RPI-Release
             REPO_NAME: HEAR_FC
 
     permissions:
@@ -433,8 +433,8 @@ jobs:
           # Backup configuration file (upm.yaml)
           cp upm.yaml upm.yaml.backup
 
-          # update configuration for leaf_fc
-          # ----------------------------------
+          # update configuration for leaf_fc_ros2
+          # --------------------------------------
           # 1) Update workspace configuration to be /home/runner/work/software-stack/software-stack/artifacts/HEAR_FC/HEAR_FC
           yq eval ".packages.${{ matrix.target_upm_package_name }}.build.workspace = \"$WORKSPACE_PATH\"" -i upm.yaml
 
@@ -522,7 +522,7 @@ jobs:
             echo '##### To download the package:'
             echo '```bash'
             echo "sudo apt update"
-            echo "sudo apt install leaf-fc -y"
+            echo "sudo apt install leaf-fc-ros2 -y"
             echo '```'
             echo ''
             echo "✅ Workflow completed successfully!"
