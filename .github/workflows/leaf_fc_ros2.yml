@@ -114,7 +114,7 @@ jobs:
           --builder=$docker_builder \
           --platform $build_platform \
           --file Dockerfile.unified \
-          -t hear_fc_jazzy_${{ matrix.target_lower }}:latest \
+          -t heaf_fc_ros2_${{ matrix.target_lower }}:latest \
           --load \
           --secret id=GITHUB_ID,env=triggering_actor \
           --secret id=GITHUB_TOKEN,env=TOKEN \
@@ -135,42 +135,42 @@ jobs:
       - name: Extract ROS2 install folder from Docker container
         run: |
           # Create a container from the image of local use we just built (but don't run it)
-          CONTAINER_ID=$(docker create --platform linux/arm64 hear_fc_jazzy_${{ matrix.target_lower }}:latest)
+          CONTAINER_ID=$(docker create --platform linux/arm64 heaf_fc_ros2_${{ matrix.target_lower }}:latest)
 
           # Create directories to hold the extracted files
-          rm  -rf extracted_files_jazzy_${{ matrix.target_lower }}
-          mkdir -p extracted_files_jazzy_${{ matrix.target_lower }}
-          mkdir -p upm_extracted_files_jazzy_${{ matrix.target_lower }}/HEAR_FC # --> used for the upcoming workflow
+          rm  -rf extracted_files_ros2_${{ matrix.target_lower }}
+          mkdir -p extracted_files_ros2_${{ matrix.target_lower }}
+          mkdir -p upm_extracted_files_ros2_${{ matrix.target_lower }}/HEAR_FC # --> used for the upcoming workflow
 
           # Copy the folder from the container to the host
-          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC/install ./extracted_files_jazzy_${{ matrix.target_lower }}
-          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC ./upm_extracted_files_jazzy_${{ matrix.target_lower }}/HEAR_FC
+          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC/install ./extracted_files_ros2_${{ matrix.target_lower }}
+          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC ./upm_extracted_files_ros2_${{ matrix.target_lower }}/HEAR_FC
 
           # Remove the container
           docker rm $CONTAINER_ID
-          ls -la extracted_files_jazzy_${{ matrix.target_lower }}
+          ls -la extracted_files_ros2_${{ matrix.target_lower }}
 
           # Remove the image
-          docker rmi hear_fc_jazzy_${{ matrix.target_lower }}
+          docker rmi heaf_fc_ros2_${{ matrix.target_lower }}
 
       - name: Compress extracted files (to attach to the release artifacts later)
         run: |
-          tar -czvf leaf_fc_jazzy_${{ matrix.target_lower }}.tar.gz -C extracted_files_jazzy_${{ matrix.target_lower }} .
+          tar -czvf leaf_fc_ros2_${{ matrix.target_lower }}.tar.gz -C extracted_files_ros2_${{ matrix.target_lower }} .
 
           # List the content to verify
-          tar -tvf leaf_fc_jazzy_${{ matrix.target_lower }}.tar.gz | head -n 10
+          tar -tvf leaf_fc_ros2_${{ matrix.target_lower }}.tar.gz | head -n 10
 
       - name: Upload folder as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: extracted_files_jazzy_${{ matrix.target_lower }}
-          path: extracted_files_jazzy_${{ matrix.target_lower }}
+          name: extracted_files_ros2_${{ matrix.target_lower }}
+          path: extracted_files_ros2_${{ matrix.target_lower }}
 
       - name: Upload upm folder as artifact (used by upm_package_deploy_fc.yml workflow)
         uses: actions/upload-artifact@v4
         with:
-          name: upm_extracted_files_jazzy_${{ matrix.target_lower }}
-          path: upm_extracted_files_jazzy_${{ matrix.target_lower }}
+          name: upm_extracted_files_ros2_${{ matrix.target_lower }}
+          path: upm_extracted_files_ros2_${{ matrix.target_lower }}
 
       - name: Upload firmware to existing release
         if: github.event_name == 'release'
@@ -178,7 +178,7 @@ jobs:
         with:
           tag_name: ${{ github.event.release.tag_name }}
           files: |
-            leaf_fc_jazzy_${{ matrix.target_lower }}.tar.gz
+            leaf_fc_ros2_${{ matrix.target_lower }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
   
@@ -296,7 +296,7 @@ jobs:
       - name: Download ${{ matrix.target }} extracted files
         uses: actions/download-artifact@v4
         with:
-          name: upm_extracted_files_jazzy_${{ matrix.target_lower }}
+          name: upm_extracted_files_ros2_${{ matrix.target_lower }}
           path: ./artifacts/
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # run-id: ${{ github.event.workflow_run.id }}
