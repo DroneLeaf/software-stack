@@ -22,6 +22,7 @@ env:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.release.name, 'QGC')
     timeout-minutes: 120
     runs-on:  macos-15
     outputs:
