@@ -135,7 +135,7 @@ jobs:
           --build-arg USERNAME="hashim" \
           --build-arg WS_NAME="HEAR_FC" \
           --build-arg IS_PRODUCTION="TRUE" \
-          --build-arg COMPILE_BRANCH="dev" \
+          --build-arg COMPILE_BRANCH="${{ github.event.release.target_commitish }}" \
           --build-arg RANDOM_NUM="$BUILD_TIMESTAMP"
 
 

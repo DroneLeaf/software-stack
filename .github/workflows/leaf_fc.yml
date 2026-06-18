@@ -115,6 +115,9 @@ jobs:
 
           # 💎 1) for local use 
           # ------------------
+          # note: --build-arg COMPILE_BRANCH="${{ github.event.release.target_commitish }}"
+          # was --build-arg COMPILE_BRANCH="dev"
+          
           echo "Start Building image for local use"
 
           # Switch to Dockerfile.unified
@@ -133,7 +136,7 @@ jobs:
           --build-arg USERNAME="hashim" \
           --build-arg WS_NAME="HEAR_FC" \
           --build-arg IS_PRODUCTION="TRUE" \
-          --build-arg COMPILE_BRANCH="dev" \
+          --build-arg COMPILE_BRANCH="${{ github.event.release.target_commitish }}" \
           --build-arg RANDOM_NUM="$BUILD_TIMESTAMP"
 
           # 💎 2) for AWS ECR Registry
