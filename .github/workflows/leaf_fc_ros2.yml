@@ -1,5 +1,5 @@
 # name: LEAF_FC ARM Libs
-name: LEAF_FC ROS1 (Noetic) ARM Build and Deploy
+name: LEAF_FC ROS2 (Jazzy) Build and Deploy
 
 on:
   release:
@@ -11,26 +11,26 @@ env:
 
 jobs:
   build:
+    if: contains(github.event.release.name, 'ros2')
     runs-on: Linux_ARM64_16core
     strategy:
       matrix:
         include:
-          - target: ORIN
-            target_lower: orin
           - target: RPI
             target_lower: rpi
+
     permissions:
       id-token: write
       contents: read
       packages: write
       actions: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
           token: ${{ secrets.TOKEN }}
 
-      # 🛠️ CLONE HEAR_Docker
       - name: Clone and HEAR_Docker repository
         env:
           GH_TOKEN: ${{ secrets.TOKEN }}
@@ -50,13 +50,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
         with:
           driver: docker-container
-
-      # - name: Define cache path
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: |
-      #       hashim/docker/cache
-      #     key: ${{ runner.os }}-hashim
 
       - name: aws credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -90,7 +83,7 @@ jobs:
           docker buildx ls
           #docker buildx rm hashimBuilder || echo "Builder does not exist yet"
 
-      - name: Build Leaf_fc under docker container environment
+      - name: Build Build LEAF FC ROS2 Jazzy under docker container environment
         working-directory: ${{env.SOURCE_DIR}}
         env:
           ECR_REGISTRY: ${{ steps.login-pf-aws-ecr.outputs.registry }}
@@ -100,7 +93,7 @@ jobs:
           triggering_actor: ${{ github.triggering_actor }}
           TOKEN: ${{ secrets.TOKEN }}
           target_lower: ${{matrix.target_lower}}
-          docker_builder: hashimBuilder
+          docker_builder: jazzyBuilder
           build_platform: linux/arm64
         run: |
           echo ${{ github.triggering_actor }}
@@ -115,23 +108,17 @@ jobs:
 
           # 💎 1) for local use 
           # ------------------
-          # note: --build-arg COMPILE_BRANCH="${{ github.event.release.target_commitish }}"
-          # was --build-arg COMPILE_BRANCH="dev"
-          
           echo "Start Building image for local use"
 
-          # Switch to Dockerfile.unified
-          # I removed --build-arg opencv_url / qt_url lines.
           docker buildx build . \
           --builder=$docker_builder \
           --platform $build_platform \
           --file Dockerfile.unified \
-          -t hear_fc_${{ matrix.target_lower }}:latest \
+          -t heaf_fc_ros2_${{ matrix.target_lower }}:latest \
           --load \
           --secret id=GITHUB_ID,env=triggering_actor \
           --secret id=GITHUB_TOKEN,env=TOKEN \
-          --build-arg UBUNTU_VERSION=20.04 \
-          --build-arg TARGET_ORIN="${{ matrix.target == 'ORIN' && 'ON' || 'OFF' }}" \
+          --build-arg UBUNTU_VERSION=24.04 \
           --build-arg TARGET="${{ matrix.target }}" \
           --build-arg USERNAME="hashim" \
           --build-arg WS_NAME="HEAR_FC" \
@@ -139,61 +126,51 @@ jobs:
           --build-arg COMPILE_BRANCH="${{ github.event.release.target_commitish }}" \
           --build-arg RANDOM_NUM="$BUILD_TIMESTAMP"
 
-          # 💎 2) for AWS ECR Registry
-          # -----------------------
-          # echo "Start Building for AWS ECR Registry"
-
-
-          # 💎 3) for DoneLeaf Docker Registry
-          # --------------------------------
-          # echo "Start Building for DroneLeaf Docker Registry"
-
-
 
           # 🧹 cleanup docker builder
           # -----------------------
           docker buildx ls
           #docker buildx rm $docker_builder || echo "Builder does not exist yet"
 
-      - name: Extract folder from Docker container
+      - name: Extract ROS2 install folder from Docker container
         run: |
           # Create a container from the image of local use we just built (but don't run it)
-          CONTAINER_ID=$(docker create --platform linux/arm64 hear_fc_${{ matrix.target_lower }}:latest)
+          CONTAINER_ID=$(docker create --platform linux/arm64 heaf_fc_ros2_${{ matrix.target_lower }}:latest)
 
           # Create directories to hold the extracted files
-          rm  -rf extracted_files_${{ matrix.target_lower }}
-          mkdir -p extracted_files_${{ matrix.target_lower }} # --> contains /devel/lib/ only and will be compressed and attached to the release files
-          mkdir -p upm_extracted_files_${{ matrix.target_lower }}/HEAR_FC # --> used for the upcoming workflow
+          rm  -rf extracted_files_ros2_${{ matrix.target_lower }}
+          mkdir -p extracted_files_ros2_${{ matrix.target_lower }}
+          mkdir -p upm_extracted_files_ros2_${{ matrix.target_lower }}/HEAR_FC # --> used for the upcoming workflow
 
           # Copy the folder from the container to the host
-          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC/devel/lib ./extracted_files_${{ matrix.target_lower }}
-          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC ./upm_extracted_files_${{ matrix.target_lower }}/HEAR_FC
+          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC/install ./extracted_files_ros2_${{ matrix.target_lower }}
+          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC ./upm_extracted_files_ros2_${{ matrix.target_lower }}/HEAR_FC
 
           # Remove the container
           docker rm $CONTAINER_ID
-          ls -la extracted_files_${{ matrix.target_lower }}
+          ls -la extracted_files_ros2_${{ matrix.target_lower }}
 
           # Remove the image
-          docker rmi hear_fc_${{ matrix.target_lower }}
+          docker rmi heaf_fc_ros2_${{ matrix.target_lower }}
 
       - name: Compress extracted files (to attach to the release artifacts later)
         run: |
-          tar -czvf leaf_fc_${{ matrix.target_lower }}.tar.gz -C extracted_files_${{ matrix.target_lower }} .
+          tar -czvf leaf_fc_ros2_${{ matrix.target_lower }}.tar.gz -C extracted_files_ros2_${{ matrix.target_lower }} .
 
           # List the content to verify
-          tar -tvf leaf_fc_${{ matrix.target_lower }}.tar.gz | head -n 10
+          tar -tvf leaf_fc_ros2_${{ matrix.target_lower }}.tar.gz | head -n 10
 
       - name: Upload folder as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: extracted_files_${{ matrix.target_lower }}
-          path: extracted_files_${{ matrix.target_lower }}
+          name: extracted_files_ros2_${{ matrix.target_lower }}
+          path: extracted_files_ros2_${{ matrix.target_lower }}
 
       - name: Upload upm folder as artifact (used by upm_package_deploy_fc.yml workflow)
         uses: actions/upload-artifact@v4
         with:
-          name: upm_extracted_files_${{ matrix.target_lower }}
-          path: upm_extracted_files_${{ matrix.target_lower }}
+          name: upm_extracted_files_ros2_${{ matrix.target_lower }}
+          path: upm_extracted_files_ros2_${{ matrix.target_lower }}
 
       - name: Upload firmware to existing release
         if: github.event_name == 'release'
@@ -201,28 +178,33 @@ jobs:
         with:
           tag_name: ${{ github.event.release.tag_name }}
           files: |
-            leaf_fc_${{ matrix.target_lower }}.tar.gz
+            leaf_fc_ros2_${{ matrix.target_lower }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
+  
+  
+  
+  
+  
   deploy:
     needs: [build]
+    if: contains(github.event.release.name, 'ros2')
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - target: ORIN
-            target_lower: orin
-            target_upm_package_name: leaf_fc
-            target_upm_publish_name: leaf-fc
-            target_upm_profile: orin_release
-            target_upm_profile_upper: ORIN-Release
+          - target: RPI
+            target_lower: rpi
+            target_upm_package_name: leaf_fc_ros2
+            target_upm_publish_name: leaf-fc-ros2
+            target_upm_profile: rpi_release
+            target_upm_profile_upper: RPI-Release
             REPO_NAME: HEAR_FC
 
     permissions:
       id-token: write
       contents: read
       actions: read
-    # if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: checkout repository
@@ -314,7 +296,7 @@ jobs:
       - name: Download ${{ matrix.target }} extracted files
         uses: actions/download-artifact@v4
         with:
-          name: upm_extracted_files_${{ matrix.target_lower }}
+          name: upm_extracted_files_ros2_${{ matrix.target_lower }}
           path: ./artifacts/
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # run-id: ${{ github.event.workflow_run.id }}
@@ -451,8 +433,8 @@ jobs:
           # Backup configuration file (upm.yaml)
           cp upm.yaml upm.yaml.backup
 
-          # update configuration for leaf_fc
-          # ----------------------------------
+          # update configuration for leaf_fc_ros2
+          # --------------------------------------
           # 1) Update workspace configuration to be /home/runner/work/software-stack/software-stack/artifacts/HEAR_FC/HEAR_FC
           yq eval ".packages.${{ matrix.target_upm_package_name }}.build.workspace = \"$WORKSPACE_PATH\"" -i upm.yaml
 
@@ -540,7 +522,7 @@ jobs:
             echo '##### To download the package:'
             echo '```bash'
             echo "sudo apt update"
-            echo "sudo apt install leaf-fc -y"
+            echo "sudo apt install leaf-fc-ros2 -y"
             echo '```'
             echo ''
             echo "✅ Workflow completed successfully!"
