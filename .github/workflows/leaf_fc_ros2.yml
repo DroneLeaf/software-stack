@@ -491,6 +491,10 @@ jobs:
 
           # 2) deploy to DroneLeaf apt repo [repo.droneleaf.io]:
           PACKAGE_ABSOLUTE_PATH=$(find $(pwd) -name "$target_upm_publish_name-$VERSION-$target_upm_profile_upper.deb")
+
+          # Expose the generated .deb path so later steps can upload it as an artifact
+          echo "DEB_PATH=$PACKAGE_ABSOLUTE_PATH" >> "$GITHUB_ENV"
+
           echo -e "\n\nDeploying package: $PACKAGE_ABSOLUTE_PATH to repo.droneleaf.io via curl HTTP request...\n\n"
           curl -v -u ${{ env.registry_username }}:${{ env.registry_password }} \
           -H "Content-Type: multipart/form-data" \
@@ -508,6 +512,13 @@ jobs:
           fi
           echo $total_files
           echo "TOTAL_FILES=$total_files" >> "$GITHUB_OUTPUT"
+
+      - name: Upload .deb package as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaf_fc_ros2_${{ matrix.target_lower }}_deb
+          path: ${{ env.DEB_PATH }}
+          if-no-files-found: error
 
       - name: build summary
         run: |
