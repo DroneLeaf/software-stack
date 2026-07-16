@@ -838,6 +838,24 @@ jobs:
           sed -i "s|^Version:.*|Version: ${VERSION}|" "$REPACK_DIR/DEBIAN/control"
           sed -i "s|^Description:.*|Description: DEV BUILD - tag: ${{ github.ref_name }} \| commit: ${{ github.sha }}|" "$REPACK_DIR/DEBIAN/control"
 
+          # Allow -dev to satisfy Depends: leaf-fc-ros2 and conflict with the stable package
+          if grep -q "^Provides:" "$REPACK_DIR/DEBIAN/control"; then
+            sed -i "s|^Provides:.*|Provides: ${target_upm_publish_name}|" "$REPACK_DIR/DEBIAN/control"
+          else
+            echo "Provides: ${target_upm_publish_name}" >> "$REPACK_DIR/DEBIAN/control"
+          fi
+          if grep -q "^Conflicts:" "$REPACK_DIR/DEBIAN/control"; then
+            sed -i "s|^Conflicts:.*|Conflicts: ${target_upm_publish_name}|" "$REPACK_DIR/DEBIAN/control"
+          else
+            echo "Conflicts: ${target_upm_publish_name}" >> "$REPACK_DIR/DEBIAN/control"
+          fi
+
+          # Fix postinst: UPM bakes the original package name into the manifest path;
+          # after repack the installed package is -dev so dpkg writes a -dev manifest.
+          if [ -f "$REPACK_DIR/DEBIAN/postinst" ]; then
+            sed -i "s|${target_upm_publish_name}\.home_manifest|${target_upm_publish_name}-dev.home_manifest|g" "$REPACK_DIR/DEBIAN/postinst"
+          fi
+
           dpkg-deb --build "$REPACK_DIR" "$DEV_DEB"
           echo "✅ Repacked: $DEV_DEB"
 
@@ -850,7 +868,7 @@ jobs:
           echo "🚀 Deploying dev package to APT repos..."
 
           # 1) deploy to leaf_apt_repo [apt.droneleaf.io]:
-          GPG_TTY=$(tty) ./upm_cli deploy ${{ matrix.target_upm_package_name }} "$DEV_DEB" leaf_apt_repo
+          GPG_TTY=$(tty) ./upm_cli deploy ${{ matrix.target_upm_package_name }} "$DEV_DEB" leaf_apt_repo || true
 
           # 2) deploy to DroneLeaf apt repo [repo.droneleaf.io]:
           echo -e "\n\nDeploying dev package: $PACKAGE_ABSOLUTE_PATH to repo.droneleaf.io...\n\n"
