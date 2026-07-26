@@ -1,11 +1,16 @@
+# Triggered by the QGC release dispatcher
 name: Linux Release
 
 on:
-  release:
-    types: [created]
-    paths-ignore:
-      - 'docs/**'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      release_tag:
+        required: false
+        type: string
+      release_name:
+        required: false
+        type: string
 
 defaults:
   run:
@@ -18,7 +23,7 @@ env:
 
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.release.name, 'QGC')
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_call' && (inputs.release_name == '' || contains(inputs.release_name, 'QGC')))
     runs-on: ubuntu-22.04
     outputs:
       ARTIFACT_TO_UPLOAD: ${{ steps.set_build_output.outputs.ARTIFACT_TO_UPLOAD }}
@@ -204,7 +209,7 @@ jobs:
 
       - name: get the latest tag for versioning
         run: |
-          LATEST_TAG=${{ github.event.release.tag_name }}
+          LATEST_TAG=${{ inputs.release_tag || github.event.release.tag_name }}
           echo "LATEST_TAG=$LATEST_TAG" >> "$GITHUB_ENV"
 
 
@@ -235,7 +240,7 @@ jobs:
       - name: Publish artifact to GitHub release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/build/package/$ARTIFACT_TO_UPLOAD
+          gh release upload ${{ inputs.release_tag || github.event.release.tag_name }} ${{ runner.temp }}/build/package/$ARTIFACT_TO_UPLOAD
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
 

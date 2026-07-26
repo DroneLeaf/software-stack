@@ -11,7 +11,7 @@ env:
 
 jobs:
   build:
-    if: contains(github.event.release.name, 'ros2')
+    if: contains(github.event.release.name, 'ros2') && !contains(github.ref_name, 'dev')
     runs-on: Linux_ARM64_16core
     strategy:
       matrix:
@@ -188,7 +188,7 @@ jobs:
   
   deploy:
     needs: [build]
-    if: contains(github.event.release.name, 'ros2')
+    if: contains(github.event.release.name, 'ros2') && !contains(github.ref_name, 'dev')
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -538,3 +538,391 @@ jobs:
             echo ''
             echo "✅ Workflow completed successfully!"
           } >> "$GITHUB_STEP_SUMMARY"
+
+
+
+
+  build-dev:
+    if: contains(github.event.release.name, 'ros2') && contains(github.ref_name, 'dev')
+    runs-on: Linux_ARM64_16core
+    strategy:
+      matrix:
+        include:
+          - target: RPI
+            target_lower: rpi
+
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+      actions: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.TOKEN }}
+
+      - name: Clone HEAR_Docker repository
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          echo "🔄 Cloning HEAR_Docker repository ..."
+          rm -rf HEAR_Docker
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/HEAR_Docker.git" HEAR_Docker \
+            || { echo "❌ Failed to clone HEAR_Docker repository"; exit 1; }
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - name: chmod
+        run: chmod -R +x ./.github
+
+      - name: Expose GitHub Runtime
+        uses: crazy-max/ghaction-github-runtime@v3
+
+      - name: Cleanup existing builders
+        run: |
+          docker buildx ls
+
+      - name: Set VERSION to 0.0.0
+        run: echo "VERSION=0.0.0" >> $GITHUB_ENV
+
+      - name: Build LEAF FC ROS2 Jazzy (dev)
+        working-directory: ${{env.SOURCE_DIR}}
+        env:
+          triggering_actor: ${{ github.triggering_actor }}
+          TOKEN: ${{ secrets.TOKEN }}
+          target_lower: ${{matrix.target_lower}}
+          docker_builder: jazzyBuilder_dev
+          build_platform: linux/arm64
+        run: |
+          echo "Building DEV for TARGET: ${{ matrix.target }}"
+          export BUILD_TIMESTAMP=$(date +%s)
+
+          docker buildx create --name $docker_builder --driver=docker-container --use || docker buildx use $docker_builder
+
+          docker buildx build . \
+          --builder=$docker_builder \
+          --platform $build_platform \
+          --file Dockerfile.unified \
+          -t heaf_fc_ros2_${{ matrix.target_lower }}:dev \
+          --load \
+          --secret id=GITHUB_ID,env=triggering_actor \
+          --secret id=GITHUB_TOKEN,env=TOKEN \
+          --build-arg UBUNTU_VERSION=24.04 \
+          --build-arg TARGET="${{ matrix.target }}" \
+          --build-arg USERNAME="hashim" \
+          --build-arg WS_NAME="HEAR_FC" \
+          --build-arg IS_PRODUCTION="TRUE" \
+          --build-arg COMPILE_BRANCH="${{ github.event.release.target_commitish }}" \
+          --build-arg RANDOM_NUM="$BUILD_TIMESTAMP"
+
+          docker buildx ls
+
+      - name: Extract ROS2 install folder from Docker container
+        run: |
+          CONTAINER_ID=$(docker create --platform linux/arm64 heaf_fc_ros2_${{ matrix.target_lower }}:dev)
+
+          rm -rf extracted_files_ros2_${{ matrix.target_lower }}
+          mkdir -p extracted_files_ros2_${{ matrix.target_lower }}
+          mkdir -p upm_extracted_files_ros2_${{ matrix.target_lower }}/HEAR_FC
+
+          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC/install ./extracted_files_ros2_${{ matrix.target_lower }}
+          docker cp $CONTAINER_ID:/home/hashim/HEAR_FC ./upm_extracted_files_ros2_${{ matrix.target_lower }}/HEAR_FC
+
+          docker rm $CONTAINER_ID
+          ls -la extracted_files_ros2_${{ matrix.target_lower }}
+          docker rmi heaf_fc_ros2_${{ matrix.target_lower }}:dev
+
+      - name: Upload upm folder as artifact (dev)
+        uses: actions/upload-artifact@v4
+        with:
+          name: upm_extracted_files_ros2_${{ matrix.target_lower }}_dev
+          path: upm_extracted_files_ros2_${{ matrix.target_lower }}
+
+
+
+
+  deploy-dev:
+    needs: [build-dev]
+    if: contains(github.event.release.name, 'ros2') && contains(github.ref_name, 'dev')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: RPI
+            target_lower: rpi
+            target_upm_package_name: leaf_fc_ros2
+            target_upm_publish_name: leaf-fc-ros2
+            target_upm_profile: rpi_release
+            target_upm_profile_upper: RPI-Release
+            REPO_NAME: HEAR_FC
+
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set VERSION to 0.0.0
+        run: echo "VERSION=0.0.0" >> $GITHUB_ENV
+
+      - name: Download ${{ matrix.target }} extracted files (dev)
+        uses: actions/download-artifact@v4
+        with:
+          name: upm_extracted_files_ros2_${{ matrix.target_lower }}_dev
+          path: ./artifacts/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify downloads
+        run: |
+          echo "Verifying downloaded artifacts..."
+          if [ -d "./artifacts" ]; then
+            echo "✅ Successfully downloaded artifacts for ${{ matrix.target }}"
+            echo "📁 Directory contents:"
+            ls -laR "./artifacts/"
+          else
+            echo "❌ No artifacts found for ${{ matrix.target }}"
+          fi
+
+      - name: Setup GPG for package signing
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "🔐 Setting up GPG for package signing..."
+
+          if ! command -v gpg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y gnupg2
+          fi
+
+          if [ -z "$GPG_PRIVATE_KEY" ]; then
+            echo "❌ GPG_PRIVATE_KEY secret not found"
+            exit 1
+          fi
+
+          echo "🔑 Importing GPG private key..."
+          echo "$GPG_PRIVATE_KEY" | base64 -d | gpg --batch --import
+
+          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep sec | awk '{print $2}' | cut -d'/' -f2 | head -1)
+          echo "GPG Key ID: $GPG_KEY_ID"
+
+          echo -e "5\ny\n" | gpg --batch --command-fd 0 --expert --edit-key $GPG_KEY_ID trust
+
+          git config --global user.signingkey $GPG_KEY_ID
+          git config --global commit.gpgsign false
+
+          echo "🧪 Testing GPG signing..."
+          echo "test" | gpg --batch --yes --passphrase "$GPG_PASSPHRASE" --armor --detach-sig --sign
+
+          if [ $? -eq 0 ]; then
+            echo "✅ GPG signing test successful"
+          else
+            echo "❌ GPG signing test failed"
+            exit 1
+          fi
+
+          echo "GPG_KEY_ID=$GPG_KEY_ID" >> $GITHUB_ENV
+          echo "GNUPGHOME=$HOME/.gnupg" >> $GITHUB_ENV
+
+      - name: Clone HEAR_Docker repository
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          echo "🔄 Cloning HEAR_Docker repository ..."
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/HEAR_Docker.git" HEAR_Docker \
+            || { echo "❌ Failed to clone HEAR_Docker repository"; exit 1; }
+
+      - name: Clone HEAR_CLI repository
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          echo "🔄 Cloning HEAR_CLI repository ..."
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/HEAR_CLI.git" HEAR_CLI \
+            || { echo "❌ Failed to clone HEAR_CLI repository"; exit 1; }
+
+      - name: Clone and configure UPM repository (dev)
+        id: upm_dev
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+          TARGET: ${{ matrix.target_lower }}
+          REPO_NAME: ${{ matrix.REPO_NAME }}
+          registry_username: ${{ secrets.registry_username }}
+          registry_password: ${{ secrets.registry_password }}
+          registry_url: "http://repo.droneleaf.io/repository/apt/"
+        run: |
+          echo "🔄 Cloning UPM repository for $TARGET dev processing..."
+
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/UPM.git" UPM \
+            || { echo "❌ Failed to clone repository"; exit 1; }
+
+          cd UPM
+
+          [ -f "upm.yaml" ] || { echo "❌ upm.yaml not found"; exit 1; }
+
+          if ! command -v yq >/dev/null 2>&1; then
+            sudo wget -qO /usr/local/bin/yq \
+              https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+            sudo chmod +x /usr/local/bin/yq
+          fi
+
+          WORKSPACE_PATH="/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/artifacts/$REPO_NAME/$REPO_NAME"
+          [ -d "$WORKSPACE_PATH" ] || {
+            echo "❌ Workspace not found: $WORKSPACE_PATH"
+            ls -la "$(dirname "$WORKSPACE_PATH")" || true
+            exit 1
+          }
+
+          cp upm.yaml upm.yaml.backup
+
+          yq eval ".packages.${{ matrix.target_upm_package_name }}.build.workspace = \"$WORKSPACE_PATH\"" -i upm.yaml
+          yq eval ".packages.${{ matrix.target_upm_package_name }}.version = \"$VERSION\"" -i upm.yaml
+
+          UPDATED_PATH=$(yq eval '.packages.${{ matrix.target_upm_package_name }}.build.workspace' upm.yaml)
+          if [ "$UPDATED_PATH" != "$WORKSPACE_PATH" ]; then
+            echo "❌ Configuration update failed"
+            mv upm.yaml.backup upm.yaml
+            exit 1
+          fi
+
+          sed -i "s|/home/medo/projects/HEAR_CLI|/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/HEAR_CLI|g" upm.yaml
+          sed -i "s|/home/medo/HEAR_Docker|/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/HEAR_Docker|g" upm.yaml
+
+          yq '.packages.${{ matrix.target_upm_package_name }}' upm.yaml
+
+          echo "✅ UPM repository configured for dev build"
+          echo "🎯 Target: $TARGET | Version: $VERSION"
+
+          cd upm
+          pip install -r requirements.txt
+          cd ..
+
+          # ----------------------------------------
+          # 📦 PACKAGING DEB:
+          # ----------------------------------------
+          echo "🚀 Running UPM package command..."
+          GPG_TTY=$(tty) ./upm_cli package ${{ matrix.target_upm_package_name }} ${{ matrix.target_upm_profile }} deb
+
+          # ----------------------------------------
+          # 📦 REPACK AS -dev PACKAGE:
+          # ----------------------------------------
+          target_upm_publish_name=${{matrix.target_upm_publish_name}}
+          target_upm_profile_upper=${{matrix.target_upm_profile_upper}}
+          ORIGINAL_DEB="dist/${target_upm_publish_name}-${VERSION}-${target_upm_profile_upper}.deb"
+
+          echo "📦 Repacking $ORIGINAL_DEB as dev package..."
+
+          REPACK_DIR="repack_dev"
+          DEV_DEB_NAME="${target_upm_publish_name}-dev-${VERSION}-${target_upm_profile_upper}.deb"
+          DEV_DEB="dist/${DEV_DEB_NAME}"
+
+          mkdir -p "$REPACK_DIR"
+          dpkg-deb -R "$ORIGINAL_DEB" "$REPACK_DIR"
+
+          # Patch DEBIAN/control
+          sed -i "s|^Package:.*|Package: ${target_upm_publish_name}-dev|" "$REPACK_DIR/DEBIAN/control"
+          sed -i "s|^Version:.*|Version: ${VERSION}|" "$REPACK_DIR/DEBIAN/control"
+          sed -i "s|^Description:.*|Description: DEV BUILD - tag: ${{ github.ref_name }} \| commit: ${{ github.sha }}|" "$REPACK_DIR/DEBIAN/control"
+
+          # Allow -dev to satisfy Depends: leaf-fc-ros2 and conflict with the stable package
+          if grep -q "^Provides:" "$REPACK_DIR/DEBIAN/control"; then
+            sed -i "s|^Provides:.*|Provides: ${target_upm_publish_name}|" "$REPACK_DIR/DEBIAN/control"
+          else
+            echo "Provides: ${target_upm_publish_name}" >> "$REPACK_DIR/DEBIAN/control"
+          fi
+          if grep -q "^Conflicts:" "$REPACK_DIR/DEBIAN/control"; then
+            sed -i "s|^Conflicts:.*|Conflicts: ${target_upm_publish_name}|" "$REPACK_DIR/DEBIAN/control"
+          else
+            echo "Conflicts: ${target_upm_publish_name}" >> "$REPACK_DIR/DEBIAN/control"
+          fi
+
+          # Fix postinst: UPM bakes the original package name into the manifest path;
+          # after repack the installed package is -dev so dpkg writes a -dev manifest.
+          if [ -f "$REPACK_DIR/DEBIAN/postinst" ]; then
+            sed -i "s|${target_upm_publish_name}\.home_manifest|${target_upm_publish_name}-dev.home_manifest|g" "$REPACK_DIR/DEBIAN/postinst"
+          fi
+
+          dpkg-deb --build "$REPACK_DIR" "$DEV_DEB"
+          echo "✅ Repacked: $DEV_DEB"
+
+          PACKAGE_ABSOLUTE_PATH=$(find $(pwd) -name "$DEV_DEB_NAME")
+          echo "DEB_PATH=$PACKAGE_ABSOLUTE_PATH" >> "$GITHUB_ENV"
+
+          # ----------------------------------------
+          # 📤 DEPLOYING APT:
+          # ----------------------------------------
+          echo "🚀 Deploying dev package to APT repos..."
+
+          # 1) deploy to leaf_apt_repo [apt.droneleaf.io]:
+          GPG_TTY=$(tty) ./upm_cli deploy ${{ matrix.target_upm_package_name }} "$DEV_DEB" leaf_apt_repo || true
+
+          # 2) deploy to DroneLeaf apt repo [repo.droneleaf.io]:
+          echo -e "\n\nDeploying dev package: $PACKAGE_ABSOLUTE_PATH to repo.droneleaf.io...\n\n"
+          curl -v -u ${{ env.registry_username }}:${{ env.registry_password }} \
+          -H "Content-Type: multipart/form-data" \
+          --data-binary "@${PACKAGE_ABSOLUTE_PATH}" http://18.158.175.125:80/repository/apt/ -H "Host: repo.droneleaf.io"
+
+      - name: Upload .deb dev package as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaf_fc_ros2_${{ matrix.target_lower }}_dev_deb
+          path: ${{ env.DEB_PATH }}
+          if-no-files-found: error
+
+      - name: build summary
+        run: |
+          {
+            echo "### 📋 DEV BUILD SUMMARY"
+            echo ''
+            echo "#### Job run ID: ${{ github.run_id }}"
+            echo "#### Triggering actor: ${{ github.triggering_actor }}"
+            echo "#### Dev tag: ${{ github.ref_name }}"
+            echo "#### Commit: ${{ github.sha }}"
+            echo "#### Processing completed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo ''
+            echo '##### To install the dev package:'
+            echo '```bash'
+            echo "sudo apt update"
+            echo "sudo apt install leaf-fc-ros2-dev -y"
+            echo '```'
+            echo ''
+            echo '##### To reinstall after a new dev release (version is always 0.0.0):'
+            echo '```bash'
+            echo "sudo apt update"
+            echo "sudo apt install --reinstall leaf-fc-ros2-dev"
+            echo '```'
+            echo ''
+            echo "✅ Dev workflow completed successfully!"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  cleanup-dev-release:
+    needs: [deploy-dev]
+    if: contains(github.event.release.name, 'ros2') && contains(github.ref_name, 'dev')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Delete dev release and tag so the name can be reused
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          echo "🧹 Cleaning up dev release/tag '${{ github.event.release.tag_name }}' now that the package deployed successfully"
+          gh release delete "${{ github.event.release.tag_name }}" \
+            --repo "${{ github.repository }}" \
+            --cleanup-tag \
+            --yes
