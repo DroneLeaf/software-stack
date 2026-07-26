@@ -1,14 +1,16 @@
+# Triggered by the QGC release dispatcher
 name: MacOS Release
 
 on:
   workflow_dispatch: # Manual trigger until resolve compilation issues
-
-  # release:
-  #   types: [created]
-  #   paths-ignore:
-  #     - 'docs/**'
-
-
+  workflow_call:
+    inputs:
+      release_tag:
+        required: false
+        type: string
+      release_name:
+        required: false
+        type: string
 
 defaults:
   run:
@@ -22,7 +24,7 @@ env:
 
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.release.name, 'QGC')
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_call' && (inputs.release_name == '' || contains(inputs.release_name, 'QGC')))
     timeout-minutes: 120
     runs-on:  macos-15
     outputs:
@@ -150,7 +152,7 @@ jobs:
       - name: Publish artifact to GitHub release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} ${{ runner.temp }}/shadow_build_dir/package/$FINAL_ARTIFACT
+          gh release upload ${{ inputs.release_tag || github.event.release.tag_name }} ${{ runner.temp }}/shadow_build_dir/package/$FINAL_ARTIFACT
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
 

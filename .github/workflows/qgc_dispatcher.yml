@@ -1,0 +1,54 @@
+name: QGC Release Dispatcher
+
+# Central entry point for QGC platform release builds (android/linux/macos/windows).
+# Those workflows are kept as reusable (workflow_call) workflows so they don't
+# clutter the Actions tab with their own release-triggered runs; this dispatcher
+# is the only one that reacts to `release: created` events, and only when the
+# release title matches the `QGC` pattern.
+
+on:
+  release:
+    types: [created]
+    paths-ignore:
+      - 'docs/**'
+  workflow_dispatch:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.release.name, 'QGC')
+    steps:
+      - name: Release matches QGC pattern
+        run: echo "Triggering QGC platform release builds"
+
+  android:
+    needs: gate
+    uses: ./.github/workflows/android_release.yml
+    secrets: inherit
+    with:
+      release_tag: ${{ github.event.release.tag_name }}
+      release_name: ${{ github.event.release.name }}
+
+  linux:
+    needs: gate
+    uses: ./.github/workflows/linux_release.yml
+    secrets: inherit
+    with:
+      release_tag: ${{ github.event.release.tag_name }}
+      release_name: ${{ github.event.release.name }}
+
+  macos:
+    needs: gate
+    uses: ./.github/workflows/macos_release.yml
+    secrets: inherit
+    with:
+      release_tag: ${{ github.event.release.tag_name }}
+      release_name: ${{ github.event.release.name }}
+
+  windows:
+    needs: gate
+    uses: ./.github/workflows/windows_release.yml
+    secrets: inherit
+    with:
+      release_tag: ${{ github.event.release.tag_name }}
+      release_name: ${{ github.event.release.name }}
