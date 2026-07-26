@@ -908,3 +908,21 @@ jobs:
             echo ''
             echo "✅ Dev workflow completed successfully!"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  cleanup-dev-release:
+    needs: [deploy-dev]
+    if: contains(github.event.release.name, 'ros2') && contains(github.ref_name, 'dev')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Delete dev release and tag so the name can be reused
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          echo "🧹 Cleaning up dev release/tag '${{ github.event.release.tag_name }}' now that the package deployed successfully"
+          gh release delete "${{ github.event.release.tag_name }}" \
+            --repo "${{ github.repository }}" \
+            --cleanup-tag \
+            --yes
