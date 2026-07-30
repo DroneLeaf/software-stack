@@ -1,0 +1,358 @@
+# LEAF_FC for Debian trixie (Raspberry Pi OS) - ROS 2 Jazzy.
+#
+# Debian-trixie sibling of leaf_fc_ros2.yml, same shape: HEAR_Docker's
+# Dockerfile.unified owns the environment and the build; this only drives it,
+# extracts the artifacts, and hands them to UPM to package/sign/publish.
+# Trixie is selected with a single build arg: BASE_IMAGE=debian:trixie.
+
+
+name: LEAF_FC RPi OS (Debian trixie, ROS2 Jazzy) Build and Deploy
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "HEAR_Msgs/HEAR_FC branch - must be a ROS 2 branch"
+        required: false
+        default: "dev"
+      base_image:
+        description: "Debian base image to build against"
+        required: false
+        default: "debian:trixie"
+      ros2_apt_url:
+        description: "Override the ROS 2 APT repo (e.g. a DroneLeaf mirror)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_DIR: ${{ github.workspace }}/HEAR_Docker
+  IMAGE_USERNAME: hashim
+  WS_NAME: HEAR_FC
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || (contains(github.event.release.name, 'ros2') && contains(github.event.release.name, 'rpi_os'))
+    runs-on: Linux_ARM64_16core
+
+    strategy:
+      matrix:
+        include:
+          - target: RPI
+            target_lower: rpi
+
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+      actions: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.TOKEN }}
+
+      - name: Clone HEAR_Docker repository
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          rm -rf HEAR_Docker
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/HEAR_Docker.git" HEAR_Docker \
+            || { echo "❌ Failed to clone HEAR_Docker repository"; exit 1; }
+
+      - name: Preflight — leaf-* trixie suite must be published
+        run: |
+          if curl -fsS "https://apt.droneleaf.io/dists/trixie/Release" >/dev/null 2>&1; then
+            echo "✅ apt.droneleaf.io serves a trixie suite."
+          else
+            echo "::error::apt.droneleaf.io has NO trixie suite. Publish the leaf-* trixie twins first (see define_trixie.md)."
+            exit 1
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - name: Expose GitHub Runtime
+        uses: crazy-max/ghaction-github-runtime@v3
+
+      - name: Build LEAF_FC ROS2 Jazzy for Debian trixie
+        working-directory: ${{ env.SOURCE_DIR }}
+        env:
+          triggering_actor: ${{ github.triggering_actor }}
+          TOKEN: ${{ secrets.TOKEN }}
+          target_lower: ${{ matrix.target_lower }}
+          docker_builder: trixieBuilder
+          build_platform: linux/arm64
+        run: |
+          set -e
+          # RANDOM_NUM busts only the HEAR_Msgs/HEAR_FC layers; base/ros2/deps stay cached.
+          export BUILD_TIMESTAMP=$(date +%s)
+
+          docker buildx create --name "$docker_builder" --driver=docker-container --use \
+            || docker buildx use "$docker_builder"
+
+          docker buildx build . \
+            --builder="$docker_builder" \
+            --platform "$build_platform" \
+            --file Dockerfile.unified \
+            -t "leaf_fc_ros2_trixie_${target_lower}:latest" \
+            --load \
+            --secret id=GITHUB_ID,env=triggering_actor \
+            --secret id=GITHUB_TOKEN,env=TOKEN \
+            --build-arg BASE_IMAGE="${{ inputs.base_image || 'debian:trixie' }}" \
+            --build-arg ROS2_APT_URL="${{ inputs.ros2_apt_url }}" \
+            --build-arg TARGET="${{ matrix.target }}" \
+            --build-arg TARGET_RPI=ON \
+            --build-arg USERNAME="${IMAGE_USERNAME}" \
+            --build-arg WS_NAME="${WS_NAME}" \
+            --build-arg IS_PRODUCTION="TRUE" \
+            --build-arg COMPILE_BRANCH="${{ github.event.release.target_commitish || inputs.branch || 'dev' }}" \
+            --build-arg RANDOM_NUM="$BUILD_TIMESTAMP"
+
+          docker buildx ls
+
+      - name: Verify the image is trixie with a working ROS 2
+        env:
+          target_lower: ${{ matrix.target_lower }}
+        run: |
+          set -e
+          docker run --rm --platform linux/arm64 "leaf_fc_ros2_trixie_${target_lower}:latest" bash -c '
+            set -e
+            . /etc/os-release
+            echo "OS: $ID $VERSION_CODENAME  arch: $(dpkg --print-architecture)"
+            [ "$ID" = debian ] || { echo "::error::image is $ID, expected debian"; exit 1; }
+            [ "$VERSION_CODENAME" = trixie ] || { echo "::error::image is $VERSION_CODENAME, expected trixie"; exit 1; }
+            source /opt/ros/jazzy/setup.bash
+            [ "$ROS_DISTRO" = jazzy ] || { echo "::error::ROS_DISTRO=$ROS_DISTRO, expected jazzy"; exit 1; }
+            echo "✅ debian/trixie + ROS 2 jazzy confirmed"'
+
+      - name: Extract the ROS2 install folder from the image
+        env:
+          target_lower: ${{ matrix.target_lower }}
+        run: |
+          set -e
+          CONTAINER_ID=$(docker create --platform linux/arm64 "leaf_fc_ros2_trixie_${target_lower}:latest")
+
+          rm -rf "extracted_files_ros2_trixie_${target_lower}" "upm_extracted_files_ros2_trixie_${target_lower}"
+          mkdir -p "extracted_files_ros2_trixie_${target_lower}"
+          mkdir -p "upm_extracted_files_ros2_trixie_${target_lower}/${WS_NAME}"
+
+          # install/ -> release asset; whole workspace -> UPM (its upm.yaml globs over it).
+          docker cp "$CONTAINER_ID:/home/${IMAGE_USERNAME}/${WS_NAME}/install" \
+            "./extracted_files_ros2_trixie_${target_lower}"
+          docker cp "$CONTAINER_ID:/home/${IMAGE_USERNAME}/${WS_NAME}" \
+            "./upm_extracted_files_ros2_trixie_${target_lower}/${WS_NAME}"
+
+          docker rm "$CONTAINER_ID"
+          ls -la "extracted_files_ros2_trixie_${target_lower}"
+          docker rmi "leaf_fc_ros2_trixie_${target_lower}:latest" || true
+
+      - name: Compress the install tree
+        env:
+          target_lower: ${{ matrix.target_lower }}
+        run: |
+          tar -czf "leaf_fc_rpi_os_${target_lower}.tar.gz" \
+            -C "extracted_files_ros2_trixie_${target_lower}" .
+          tar -tzf "leaf_fc_rpi_os_${target_lower}.tar.gz" | head -n 10
+
+      - name: Upload install tree as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extracted_files_ros2_trixie_${{ matrix.target_lower }}
+          path: extracted_files_ros2_trixie_${{ matrix.target_lower }}
+          if-no-files-found: error
+
+      - name: Upload UPM workspace as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: upm_extracted_files_ros2_trixie_${{ matrix.target_lower }}
+          path: upm_extracted_files_ros2_trixie_${{ matrix.target_lower }}
+          if-no-files-found: error
+
+      - name: Attach the install tree to the release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: leaf_fc_rpi_os_${{ matrix.target_lower }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+
+  deploy:
+    needs: [build]
+    if: github.event_name == 'workflow_dispatch' || (contains(github.event.release.name, 'ros2') && contains(github.event.release.name, 'rpi_os'))
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - target: RPI
+            target_lower: rpi
+            target_upm_package_name: leaf_fc_ros2_trixie
+            target_upm_publish_name: leaf-fc-ros2
+            target_upm_profile: rpi_release
+            target_upm_profile_upper: RPI-Release
+            target_distribution: trixie
+            REPO_NAME: HEAR_FC
+
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version from release
+        run: |
+          BRANCH_NAME="${{ github.ref_name }}"
+          COMMIT_SHA="${{ github.sha }}"
+          git fetch --tags || true
+          TAG_NAME=$(git tag --points-at "$COMMIT_SHA" | head -1)
+          VERSION=""
+
+          if [ -n "$TAG_NAME" ]; then
+            VERSION=$(echo "$TAG_NAME" | sed -E 's/^(v|release-|rel-)?([0-9]+\.[0-9]+\.[0-9]+).*$/\2/')
+          fi
+          if [ -z "$VERSION" ] && [[ "$BRANCH_NAME" =~ release|rel ]]; then
+            VERSION=$(echo "$BRANCH_NAME" | sed -E 's/.*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+          fi
+          if [ -z "$VERSION" ]; then
+            LATEST=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name // empty')
+            [ -n "$LATEST" ] && VERSION=$(echo "$LATEST" | sed -E 's/^(v|release-|rel-)?([0-9]+\.[0-9]+\.[0-9]+).*$/\2/')
+          fi
+          [ -z "$VERSION" ] && VERSION="0.0.$(date +%Y%m%d)"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || VERSION="0.0.1"
+
+          echo "✅ Version: $VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Download the UPM workspace artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: upm_extracted_files_ros2_trixie_${{ matrix.target_lower }}
+          path: ./artifacts/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify downloads
+        run: |
+          test -d ./artifacts || { echo "::error::no artifacts downloaded"; exit 1; }
+          ls -la ./artifacts/
+
+      - name: Setup GPG for package signing
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if ! command -v gpg >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y gnupg2
+          fi
+          if [ -z "$GPG_PRIVATE_KEY" ]; then
+            echo "::error::GPG_PRIVATE_KEY secret not found"; exit 1
+          fi
+          echo "$GPG_PRIVATE_KEY" | base64 -d | gpg --batch --import
+          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep sec | awk '{print $2}' | cut -d'/' -f2 | head -1)
+          echo -e "5\ny\n" | gpg --batch --command-fd 0 --expert --edit-key "$GPG_KEY_ID" trust
+          git config --global user.signingkey "$GPG_KEY_ID"
+          git config --global commit.gpgsign false
+          echo "test" | gpg --batch --yes --passphrase "$GPG_PASSPHRASE" --armor --detach-sig --sign >/dev/null
+          echo "GPG_KEY_ID=$GPG_KEY_ID" >> "$GITHUB_ENV"
+          echo "GNUPGHOME=$HOME/.gnupg" >> "$GITHUB_ENV"
+
+      - name: Clone HEAR_Docker repository
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/HEAR_Docker.git" HEAR_Docker \
+            || { echo "❌ Failed to clone HEAR_Docker"; exit 1; }
+
+      - name: Clone HEAR_CLI repository
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/HEAR_CLI.git" HEAR_CLI \
+            || { echo "❌ Failed to clone HEAR_CLI"; exit 1; }
+
+      - name: UPM package + deploy (trixie suite)
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+          REPO_NAME: ${{ matrix.REPO_NAME }}
+          registry_username: ${{ secrets.registry_username }}
+          registry_password: ${{ secrets.registry_password }}
+        run: |
+          set -e
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/DroneLeaf/UPM.git" UPM \
+            || { echo "❌ Failed to clone UPM"; exit 1; }
+          cd UPM
+          [ -f upm.yaml ] || { echo "::error::upm.yaml not found"; exit 1; }
+
+          if ! command -v yq >/dev/null 2>&1; then
+            sudo wget -qO /usr/local/bin/yq \
+              https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+            sudo chmod +x /usr/local/bin/yq
+          fi
+
+          PKG="${{ matrix.target_upm_package_name }}"
+          if [ "$(yq eval ".packages.${PKG} // \"null\"" upm.yaml)" = "null" ]; then
+            echo "::error::upm.yaml has no '${PKG}' (see define_trixie.md)."
+            exit 1
+          fi
+
+          WORKSPACE_PATH="/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/artifacts/$REPO_NAME/$REPO_NAME"
+          [ -d "$WORKSPACE_PATH" ] || {
+            echo "::error::Workspace not found: $WORKSPACE_PATH"
+            ls -la "$(dirname "$WORKSPACE_PATH")" || true
+            exit 1
+          }
+
+          cp upm.yaml upm.yaml.backup
+          yq eval ".packages.${PKG}.build.workspace = \"$WORKSPACE_PATH\"" -i upm.yaml
+          yq eval ".packages.${PKG}.version = \"$VERSION\"" -i upm.yaml
+          if [ "$(yq eval ".packages.${PKG}.build.workspace" upm.yaml)" != "$WORKSPACE_PATH" ]; then
+            echo "::error::upm.yaml workspace update failed"; mv upm.yaml.backup upm.yaml; exit 1
+          fi
+
+          sed -i "s|/home/medo/projects/HEAR_CLI|/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/HEAR_CLI|g" upm.yaml
+          sed -i "s|/home/medo/HEAR_Docker|/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/HEAR_Docker|g" upm.yaml
+
+          cd upm && pip install -r requirements.txt && cd ..
+
+          GPG_TTY=$(tty) ./upm_cli package "$PKG" ${{ matrix.target_upm_profile }} deb
+
+          # Derive the .deb name from name_template: the trixie twin carries a -trixie- infix.
+          STEM=$(yq eval ".packages.${PKG}.packaging.name_template" upm.yaml | sed 's/-\?{version}.*//')
+          DEB_NAME="${STEM}-${VERSION}-${{ matrix.target_upm_profile_upper }}.deb"
+          if [ ! -f "dist/${DEB_NAME}" ]; then
+            echo "::error::dist/${DEB_NAME} not found after packaging. Present:"; ls -la dist/ || true; exit 1
+          fi
+
+          GPG_TTY=$(tty) ./upm_cli deploy "$PKG" "dist/${DEB_NAME}" leaf_apt_repo
+
+          PACKAGE_ABSOLUTE_PATH=$(find "$(pwd)" -name "$DEB_NAME" | head -1)
+          test -n "$PACKAGE_ABSOLUTE_PATH" || { echo "::error::built .deb not found"; exit 1; }
+          echo "DEB_PATH=$PACKAGE_ABSOLUTE_PATH" >> "$GITHUB_ENV"
+
+          curl -v -u "${registry_username}:${registry_password}" \
+            -H "Content-Type: multipart/form-data" \
+            --data-binary "@${PACKAGE_ABSOLUTE_PATH}" \
+            http://18.158.175.125:80/repository/apt/ -H "Host: repo.droneleaf.io"
+
+      - name: Upload the .deb as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaf_fc_rpi_os_${{ matrix.target_lower }}_deb
+          path: ${{ env.DEB_PATH }}
+          if-no-files-found: error
+
