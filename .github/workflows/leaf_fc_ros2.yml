@@ -543,7 +543,7 @@ jobs:
 
 
   build-dev:
-    if: contains(github.event.release.name, 'ros2') && contains(github.ref_name, 'dev')
+    if: contains(github.event.release.name, 'ros2') && contains(github.ref_name, 'dev') && !contains(github.event.release.name, 'rpi_os')
     runs-on: Linux_ARM64_16core
     strategy:
       matrix:
@@ -652,7 +652,7 @@ jobs:
 
   deploy-dev:
     needs: [build-dev]
-    if: contains(github.event.release.name, 'ros2') && contains(github.ref_name, 'dev')
+    if: contains(github.event.release.name, 'ros2') && contains(github.ref_name, 'dev') && !contains(github.event.release.name, 'rpi_os')
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -911,7 +911,7 @@ jobs:
 
   cleanup-dev-release:
     needs: [deploy-dev]
-    if: contains(github.event.release.name, 'ros2') && contains(github.ref_name, 'dev')
+    if: contains(github.event.release.name, 'ros2') && contains(github.ref_name, 'dev') && !contains(github.event.release.name, 'rpi_os')
     runs-on: ubuntu-latest
     permissions:
       contents: write
