@@ -373,17 +373,13 @@ jobs:
           test -n "$PACKAGE_ABSOLUTE_PATH" || { echo "::error::built .deb not found"; exit 1; }
           echo "DEB_PATH=$PACKAGE_ABSOLUTE_PATH" >> "$GITHUB_ENV"
 
-          # Deploy to repo.droneleaf.io (Nexus apt-hosted) — DISABLED.
-          # No distro/suite namespacing on that repo: this push and leaf_fc_ros2.yml's
-          # noble push land in the exact same "leaf-fc-ros2" package identity, so
-          # whichever workflow's curl runs last wins — even though the two builds are
-          # ABI-incompatible (noble vs. trixie). This already happened in production
-          # (both repos carried "leaf-fc-ros2" 1.11.2+rpi at once; a device with both
-          # sources configured installed the wrong/noble build — see
-          # installation-script's install:667-678). apt.droneleaf.io keeps noble and
-          # trixie in separate suites and is the only safe source for this package
-          # until a real per-suite design exists for the Nexus side. Left commented
-          # (not deleted) intentionally — re-enable only alongside that fix.
+          # Deploy to repo.droneleaf.io suspended for now.
+          # The artifact of this workflow and leaf_fc_ros2.yml's one
+          # share the exact same "leaf-fc-ros2" package identity, so
+          # whichever workflow's finishs last and pushes last wins.
+          # A trixie device with both sources configured may install the wrong/noble build
+          # The leaf-fc-ros2 is disabled on repo.droneleaf.io until a real per-suite design exists on it.
+          # Left commented(not deleted) intentionally to re-enable only alongside that fix.
           # curl -v -u "${registry_username}:${registry_password}" \
           #   -H "Content-Type: multipart/form-data" \
           #   --data-binary "@${PACKAGE_ABSOLUTE_PATH}" \
