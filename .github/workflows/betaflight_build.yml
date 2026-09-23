@@ -1,6 +1,13 @@
-# Version: 2026.6.0-alpha
-# MCU Family: STM32F7X2
-# Target: SKYSTARSF7HDPRO
+# Version: 2025.12.5
+# MCU Family: STM32H743
+# Targets: MICOAIR743V2 (MicoAir743 V2), MICOAIR743 (MicoAir743), KAKUTEH7V2 (Holybro Kakute H7 V2)
+#
+# Firmware is built from the betaflight submodule pinned by this repository, so
+# bump that pointer to publish new flight-controller builds.
+#
+# The .hex files can be flashed with the Betaflight App (Firmware Flasher tab ->
+# "Load Firmware [Local]"); the build server used by "Load Firmware [Online]"
+# only serves builds of the upstream betaflight repository.
 name: Build Betaflight Firmware
 
 on:
@@ -19,7 +26,10 @@ permissions:
 
 jobs:
   firmware:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.release.name, 'racer') || contains(inputs.release_name, 'racer')
+    # Called by flightcontrollers_dispatcher.yml for releases named '*betaflight*'.
+    # NOTE: inside a called workflow github.event_name is the *caller's* event and
+    # never 'workflow_call', so the release path is keyed off inputs instead.
+    if: github.event_name == 'workflow_dispatch' || inputs.release_name == '' || contains(inputs.release_name, 'betaflight')
     runs-on: ubuntu-latest
 
     defaults:
@@ -27,9 +37,12 @@ jobs:
         working-directory: betaflight # --> every run step executes inside: $GITHUB_WORKSPACE/betaflight
 
     strategy:
+      fail-fast: false
       matrix:
         target:
-          - SKYSTARSF7HDPRO
+          - MICOAIR743V2
+          - MICOAIR743
+          - KAKUTEH7V2
 
     steps:
       - name: Checkout repository
@@ -57,25 +70,38 @@ jobs:
       - name: Clean build
         run: make clean || true
 
+      # FORKNAME marks the binary as ours, _rev appends the betaflight commit
+      # hash: droneleaf_<version>_STM32H743_<target>_<revision>.hex
       - name: Build firmware
-        run: make ${{ matrix.target }}
+        run: make ${{ matrix.target }}_rev FORKNAME=droneleaf
 
-      - name: Upload firmware artifact
+      - name: Package firmware files
+        working-directory: .
+        run: |
+          set -euo pipefail
+          mkdir -p release_files
+          cp betaflight/obj/droneleaf_*_${{ matrix.target }}_*.hex release_files/
+          ls -al release_files
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: betaflight-${{ matrix.target }}.hex.zip
-          path: betaflight/obj/betaflight_*_${{ matrix.target }}.hex
+          name: betaflight-build-output-${{ matrix.target }}
+          path: release_files/*.hex
+          if-no-files-found: error
 
-      - name: Attach firmware to GitHub Release
+      - name: Upload firmware to existing release
+        if: inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
-          files: betaflight/obj/betaflight_*_${{ matrix.target }}.hex
+          files: release_files/*.hex
+          tag_name: ${{ inputs.release_tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
   sitl:
     needs: [firmware]
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.release.name, 'racer') || contains(inputs.release_name, 'racer')
+    if: github.event_name == 'workflow_dispatch' || inputs.release_name == '' || contains(inputs.release_name, 'betaflight')
     runs-on: ubuntu-latest
 
     defaults:
@@ -108,29 +134,40 @@ jobs:
       - name: Build SITL
         run: make TARGET=SITL
 
-      - name: Upload SITL artifact
+      # Binary name carries the firmware version, so it is matched by glob.
+      - name: Package SITL binary
+        working-directory: .
+        run: |
+          set -euo pipefail
+          mkdir -p release_files
+          SITL_BIN="$(ls betaflight/obj/betaflight_*_SITL)"
+          cp "${SITL_BIN}" release_files/
+          cp "${SITL_BIN}" "release_files/$(basename "${SITL_BIN}").elf"
+          ls -al release_files
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: betaflight-SITL.zip
-          path: betaflight/obj/betaflight_2026.6.0-alpha_SITL
+          name: betaflight-build-output-SITL
+          path: release_files/betaflight_*_SITL
+          if-no-files-found: error
 
-      - name: rename before publishing to release assets
-        run: cp ./obj/betaflight_2026.6.0-alpha_SITL ./obj/betaflight_2026.6.0-alpha_SITL.elf
-
-      - name: Attach SITL to GitHub Release
+      - name: Upload SITL to existing release
+        if: inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
-          files: betaflight/obj/betaflight_2026.6.0-alpha_SITL.elf
+          files: release_files/*.elf
+          tag_name: ${{ inputs.release_tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
-  ##########################################################        
+  ##########################################################
   # SITL binds port 5761 for UART1
   # SITL will output to IP 127.0.0.1:9002 (Gazebo)
   # SITL will output to IP 127.0.0.1:9001 (RealFlightBridge)
   ##########################################################
   validate:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.release.name, 'racer') || contains(inputs.release_name, 'racer')
+    if: github.event_name == 'workflow_dispatch' || inputs.release_name == '' || contains(inputs.release_name, 'betaflight')
     runs-on: ubuntu-latest
     needs: sitl
 
@@ -149,16 +186,22 @@ jobs:
       - name: Download SITL artifact
         uses: actions/download-artifact@v4
         with:
-          name: betaflight-SITL.zip
+          name: betaflight-build-output-SITL
           path: betaflight/obj/
 
+      - name: Resolve SITL binary
+        run: |
+          set -euo pipefail
+          SITL_BIN="$(ls ./obj/betaflight_*_SITL)"
+          echo "SITL_BIN=${SITL_BIN}" >> "$GITHUB_ENV"
+
       - name: Set executable permissions on SITL binary
-        run: chmod +x ./obj/betaflight_2026.6.0-alpha_SITL
+        run: chmod +x "${SITL_BIN}"
 
       - name: Run SITL and capture output
         run: |
           set -e
-          timeout 8s ./obj/betaflight_2026.6.0-alpha_SITL > sitl.log || true # --> $GITHUB_WORKSPACE/betaflight/sitl.log
+          timeout 8s "${SITL_BIN}" > sitl.log || true # --> $GITHUB_WORKSPACE/betaflight/sitl.log
 
       - name: Checking for crash
         run: |
@@ -177,4 +220,3 @@ jobs:
         with:
           name: sitl.log.zip
           path: betaflight/sitl.log
-          
