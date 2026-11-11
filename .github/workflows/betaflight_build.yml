@@ -1,9 +1,9 @@
-# Version: 2025.12.5
-# MCU Family: STM32H743
-# Targets: MICOAIR743V2 (MicoAir743 V2), MICOAIR743 (MicoAir743), KAKUTEH7V2 (Holybro Kakute H7 V2)
+# Builds the DroneLeaf Betaflight firmware from the betaflight submodule pinned by this
+# repository, so bump that pointer to publish new flight-controller builds. Boards and
+# build options live in betaflight/droneleaf/build-firmware.sh, shared with the fork's
+# own "DroneLeaf Firmware Release" workflow.
 #
-# Firmware is built from the betaflight submodule pinned by this repository, so
-# bump that pointer to publish new flight-controller builds.
+# Called by flightcontrollers_dispatcher.yml for releases named '*racer*' or '*betaflight*'.
 #
 # The .hex files can be flashed with the Betaflight App (Firmware Flasher tab ->
 # "Load Firmware [Local]"); the build server used by "Load Firmware [Online]"
@@ -25,11 +25,32 @@ permissions:
   contents: write
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.get-targets.outputs.targets }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.TOKEN }}
+          submodules: true
+
+      - name: Get build targets
+        id: get-targets
+        run: echo "targets=$(./betaflight/droneleaf/build-firmware.sh targets)" >> "$GITHUB_OUTPUT"
+
+      - name: Release info
+        run: |
+          {
+            echo '### Betaflight firmware'
+            echo '```'
+            ./betaflight/droneleaf/build-firmware.sh release-info
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   firmware:
-    # Called by flightcontrollers_dispatcher.yml for releases named '*betaflight*'.
-    # NOTE: inside a called workflow github.event_name is the *caller's* event and
-    # never 'workflow_call', so the release path is keyed off inputs instead.
-    if: github.event_name == 'workflow_dispatch' || inputs.release_name == '' || contains(inputs.release_name, 'betaflight')
+    needs: setup
     runs-on: ubuntu-latest
 
     defaults:
@@ -39,10 +60,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - MICOAIR743V2
-          - MICOAIR743
-          - KAKUTEH7V2
+        target: ${{ fromJson(needs.setup.outputs.targets) }}
 
     steps:
       - name: Checkout repository
@@ -50,30 +68,21 @@ jobs:
         with:
           token: ${{ secrets.TOKEN }}
           submodules: recursive
-          fetch-depth: 0
 
-      - name: Sync submodules
-        run: git submodule update --init --recursive
-        working-directory: .
-
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y build-essential git curl clang python3 python3-pip
+      - name: Cache build toolchain
+        uses: actions/cache@v4
+        id: cache-toolchain
+        with:
+          path: betaflight/tools
+          key: ${{ runner.os }}-betaflight-${{ hashFiles('betaflight/mk/tools.mk') }}
 
       - name: Install ARM toolchain
+        if: steps.cache-toolchain.outputs.cache-hit != 'true'
         run: make arm_sdk_install
 
-      - name: Prepare configs
-        run: make configs
-
-      - name: Clean build
-        run: make clean || true
-
-      # FORKNAME marks the binary as ours, _rev appends the betaflight commit
-      # hash: droneleaf_<version>_STM32H743_<target>_<revision>.hex
+      # Output: droneleaf_<version>_STM32H743_<target>_<revision>.hex
       - name: Build firmware
-        run: make ${{ matrix.target }}_rev FORKNAME=droneleaf
+        run: ./droneleaf/build-firmware.sh build ${{ matrix.target }}
 
       - name: Package firmware files
         working-directory: .
@@ -92,16 +101,25 @@ jobs:
 
       - name: Upload firmware to existing release
         if: inputs.release_tag != ''
-        uses: softprops/action-gh-release@v2
-        with:
-          files: release_files/*.hex
-          tag_name: ${{ inputs.release_tag }}
+        working-directory: .
         env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+          GH_TOKEN: ${{ secrets.TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        # A dev release may already be deleted by its own cleanup job; that must not fail this build.
+        run: |
+          set -euo pipefail
+          if ! gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" > /dev/null 2>&1; then
+            echo "::warning::Release '${RELEASE_TAG}' no longer exists; skipping firmware upload"
+            exit 0
+          fi
+          gh release upload "${RELEASE_TAG}" release_files/*.hex --repo "${GITHUB_REPOSITORY}" --clobber
 
+  ##########################################################
+  # SITL binds port 5761 for UART1
+  # SITL will output to IP 127.0.0.1:9002 (Gazebo)
+  # SITL will output to IP 127.0.0.1:9001 (RealFlightBridge)
+  ##########################################################
   sitl:
-    needs: [firmware]
-    if: github.event_name == 'workflow_dispatch' || inputs.release_name == '' || contains(inputs.release_name, 'betaflight')
     runs-on: ubuntu-latest
 
     defaults:
@@ -114,25 +132,19 @@ jobs:
         with:
           token: ${{ secrets.TOKEN }}
           submodules: recursive
-          fetch-depth: 0
-
-      - name: Sync submodules
-        run: git submodule update --init --recursive
-        working-directory: .
-
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y build-essential git curl clang python3 python3-pip
-
-      - name: Install ARM toolchain
-        run: make arm_sdk_install
-
-      - name: Clean build
-        run: make clean TARGET=SITL || true
 
       - name: Build SITL
-        run: make TARGET=SITL
+        run: ./droneleaf/build-firmware.sh build SITL
+
+      - name: Smoke-test SITL
+        run: ./droneleaf/build-firmware.sh smoke-sitl "$(ls obj/droneleaf_*_SITL)"
+
+      - name: Upload SITL logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sitl.log.zip
+          path: betaflight/sitl.log
 
       # Binary name carries the firmware version, so it is matched by glob.
       - name: Package SITL binary
@@ -140,8 +152,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release_files
-          SITL_BIN="$(ls betaflight/obj/betaflight_*_SITL)"
-          cp "${SITL_BIN}" release_files/
+          SITL_BIN="$(ls betaflight/obj/droneleaf_*_SITL)"
           cp "${SITL_BIN}" "release_files/$(basename "${SITL_BIN}").elf"
           ls -al release_files
 
@@ -149,74 +160,20 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: betaflight-build-output-SITL
-          path: release_files/betaflight_*_SITL
+          path: release_files/*.elf
           if-no-files-found: error
 
       - name: Upload SITL to existing release
         if: inputs.release_tag != ''
-        uses: softprops/action-gh-release@v2
-        with:
-          files: release_files/*.elf
-          tag_name: ${{ inputs.release_tag }}
+        working-directory: .
         env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
-
-  ##########################################################
-  # SITL binds port 5761 for UART1
-  # SITL will output to IP 127.0.0.1:9002 (Gazebo)
-  # SITL will output to IP 127.0.0.1:9001 (RealFlightBridge)
-  ##########################################################
-  validate:
-    if: github.event_name == 'workflow_dispatch' || inputs.release_name == '' || contains(inputs.release_name, 'betaflight')
-    runs-on: ubuntu-latest
-    needs: sitl
-
-    defaults:
-      run:
-        working-directory: betaflight # --> every run step executes inside: $GITHUB_WORKSPACE/betaflight
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.TOKEN }}
-          submodules: recursive
-          fetch-depth: 0
-
-      - name: Download SITL artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: betaflight-build-output-SITL
-          path: betaflight/obj/
-
-      - name: Resolve SITL binary
+          GH_TOKEN: ${{ secrets.TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        # A dev release may already be deleted by its own cleanup job; that must not fail this build.
         run: |
           set -euo pipefail
-          SITL_BIN="$(ls ./obj/betaflight_*_SITL)"
-          echo "SITL_BIN=${SITL_BIN}" >> "$GITHUB_ENV"
-
-      - name: Set executable permissions on SITL binary
-        run: chmod +x "${SITL_BIN}"
-
-      - name: Run SITL and capture output
-        run: |
-          set -e
-          timeout 8s "${SITL_BIN}" > sitl.log || true # --> $GITHUB_WORKSPACE/betaflight/sitl.log
-
-      - name: Checking for crash
-        run: |
-          if grep -iE "segmentation fault|core dumped|panic|fatal" sitl.log; then
-            echo "Crash detected"
-            cat sitl.log
-            exit 1
+          if ! gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" > /dev/null 2>&1; then
+            echo "::warning::Release '${RELEASE_TAG}' no longer exists; skipping firmware upload"
+            exit 0
           fi
-
-      - name: Validate normal startup output
-        run: |
-          grep -qE "SITL|Betaflight" sitl.log || (echo "Missing expected output" && cat sitl.log && exit 1)
-
-      - name: Upload SITL logs
-        uses: actions/upload-artifact@v4
-        with:
-          name: sitl.log.zip
-          path: betaflight/sitl.log
+          gh release upload "${RELEASE_TAG}" release_files/*.elf --repo "${GITHUB_REPOSITORY}" --clobber

@@ -14,7 +14,7 @@ on:
 jobs:
   gate:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.release.name, 'px4') || contains(github.event.release.name, 'betaflight')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.release.name, 'px4') || contains(github.event.release.name, 'betaflight') || contains(github.event.release.name, 'racer')
     steps:
       - name: Release matches a flight-controller pattern
         run: echo "Triggering matching flight-controller builds"
@@ -30,7 +30,7 @@ jobs:
 
   betaflight:
     needs: gate
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.release.name, 'betaflight')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.release.name, 'betaflight') || contains(github.event.release.name, 'racer')
     uses: ./.github/workflows/betaflight_build.yml
     secrets: inherit
     with:
