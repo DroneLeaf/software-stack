@@ -211,7 +211,7 @@ jobs:
   deploy:
     needs: [build]
     if: github.event_name == 'workflow_dispatch' || (contains(github.event.release.name, 'ros2') && contains(github.event.release.name, 'rpi_os') && !contains(github.ref_name, 'dev'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     strategy:
       matrix:
@@ -511,7 +511,7 @@ jobs:
   deploy-dev:
     needs: [build-dev]
     if: contains(github.event.release.name, 'ros2') && contains(github.event.release.name, 'rpi_os') && contains(github.ref_name, 'dev')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     strategy:
       matrix:
@@ -721,7 +721,7 @@ jobs:
   cleanup-dev-release:
     needs: [deploy-dev]
     if: contains(github.event.release.name, 'ros2') && contains(github.event.release.name, 'rpi_os') && contains(github.ref_name, 'dev')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
 
