@@ -18,9 +18,9 @@ on:
         required: false
         default: "dev"
       base_image:
-        description: "Debian base image to build against"
+        description: "Override the Debian base image (empty uses TRIXIE_BASE_IMAGE)"
         required: false
-        default: "debian:trixie"
+        default: ""
       ros2_apt_url:
         description: "Override the ROS 2 APT repo (e.g. a DroneLeaf mirror)"
         required: false
@@ -31,13 +31,41 @@ permissions:
 
 env:
   SOURCE_DIR: ${{ github.workspace }}/HEAR_Docker
-  IMAGE_USERNAME: hashim
   WS_NAME: HEAR_FC
+  IMAGE_USERNAME: hashim
+  # Set repository variable LEAF_FC_FORCE_DEPS_REFRESH to "true" for a cold dependency rebuild.
+  FORCE_DEPS_REFRESH: ${{ vars.LEAF_FC_FORCE_DEPS_REFRESH }}
+  # ------------------------------------------------------------------------
+  # TRIXIE_BASE_IMAGE: Pinned to a specific SHA256 digest for reproducible builds.
+  #
+  # Why use a SHA256 digest instead of a tag (e.g., "debian:trixie")?
+  #   - Tags are mutable: "debian:trixie" can point to a different image over time
+  #     as Debian releases security updates and point releases (by the original maintainer).
+  #   - A SHA256 digest is immutable: it always resolves to the exact same image
+  #     layers, guaranteeing bit-for-bit reproducibility.
+  #
+  # How this avoids unwanted cache invalidations:
+  #   - Docker layer caching keys off the base image digest. If the base image
+  #     changes (even with the same tag), all downstream layers are invalidated,
+  #     forcing a full rebuild of base/ros2/deps layers.
+  #   - By pinning to a digest, the base image layer remains constant across
+  #     workflow runs. Cached layers for ROS 2 installation, system dependencies,
+  #     and workspace setup remain valid until we explicitly bump this digest.
+  #
+  # When to bump:
+  #   - Update the TRIXIE_BASE_IMAGE repository variable when you want to pull in
+  #     Debian security updates, new package versions, or ROS 2 dependency updates.
+  #   - Do NOT bump automatically; treat it as a deliberate version pin.
+  # ------------------------------------------------------------------------
+  # The repository variable wins. What after || is used only when the variable is
+  # missing or empty, so a deleted variable cannot leave the Docker FROM blank.
+  # keep this digest equal to the variable whenever you bump it.
+  TRIXIE_BASE_IMAGE: ${{ vars.TRIXIE_BASE_IMAGE || 'debian:trixie@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6' }}
 
 jobs:
   build:
     if: github.event_name == 'workflow_dispatch' || (contains(github.event.release.name, 'ros2') && contains(github.event.release.name, 'rpi_os') && !contains(github.ref_name, 'dev'))
-    runs-on: Linux_ARM64_16core
+    runs-on: ${{ vars.LEAF_FC_ARM_RUNNER || 'Linux_ARM64_16core' }}
 
     strategy:
       matrix:
@@ -51,7 +79,41 @@ jobs:
       packages: write
       actions: write
 
+    # the deploy job needs the calculated package version from the build job
+    # so that we have to expose it as a job-output
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
     steps:
+      - name: Read the version from the release tag
+        id: version
+        if: github.event_name == 'release'
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          TAG_PATTERN='^(v|release-|rel-)?([0-9]+\.[0-9]+\.[0-9]+)([._+-][A-Za-z].*)?$'
+          # examples:
+          #   v1.2.3
+          #   release-1.2.3
+          #   rel-1.2.3
+          #   1.2.3
+          #   v1.2.3-alpha
+          #   release-1.2.3_beta
+          #   1.2.3+build123
+          #   v1.2.3.rc1
+          if [[ ! "$TAG_NAME" =~ $TAG_PATTERN ]]; then
+            echo "::error::Release tag '$TAG_NAME' is not a valid X.Y.Z version tag"
+            exit 1
+          fi
+
+          # Now we need to retrive the second capture group (the version number X.Y.Z)
+          # by stripping any v,release-,rel- prefix and any suffix
+          # and that can be done by ${BASH_REMATCH[N]}
+          VERSION="${BASH_REMATCH[2]}"
+
+          echo "✅ Version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -83,7 +145,8 @@ jobs:
       - name: Expose GitHub Runtime
         uses: crazy-max/ghaction-github-runtime@v3
 
-      # Registry layer cache
+      # we will employ GHCR to store the built Docker image layers caching
+      # so we have to authenticate oursleves here first.
       - name: Login to GHCR (registry layer cache)
         uses: docker/login-action@v3
         with:
@@ -92,6 +155,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build LEAF_FC ROS2 Jazzy for Debian trixie
+        id: build-using-docker
         working-directory: ${{ env.SOURCE_DIR }}
         env:
           triggering_actor: ${{ github.triggering_actor }}
@@ -99,26 +163,53 @@ jobs:
           target_lower: ${{ matrix.target_lower }}
           docker_builder: trixieBuilder
           build_platform: linux/arm64
-          CACHE_REF: ghcr.io/droneleaf/software-stack:leaf-fc-rpi-os-cache
+          CACHE_REF: ghcr.io/droneleaf/software-stack:leaf-fc-rpi-os-deps-cache
         run: |
           set -e
-          # RANDOM_NUM busts only the HEAR_Msgs/HEAR_FC layers; base/ros2/deps stay cached.
+          # RANDOM_NUM busts app layers; FORCE_DEPS_REFRESH can also even rebuild from earlier Dockerfile stages (base/ros2/deps).
           export BUILD_TIMESTAMP=$(date +%s)
+
+          if [[ "$FORCE_DEPS_REFRESH" == "true" ]]; then
+            echo "Forcing fresh base, ros2, and deps stages; skipping GHCR cache import."
+            BUILD_CACHE_ARGS=(--no-cache-filter base --no-cache-filter ros2 --no-cache-filter deps)
+          else
+            BUILD_CACHE_ARGS=(--cache-from "type=registry,ref=$CACHE_REF")
+          fi
 
           docker buildx create --name "$docker_builder" --driver=docker-container --use \
             || docker buildx use "$docker_builder"
 
+          # The artifacts target runs the trixie checks, then exports only what gets packaged.
+          # The Dockerfile copies files under /$WS_NAME, creating another $WS_NAME folder inside this export directory.
+          # Example for rpi: $GITHUB_WORKSPACE/upm_extracted_files_ros2_trixie_rpi/HEAR_FC
+          EXPORT_DIR="${GITHUB_WORKSPACE}/upm_extracted_files_ros2_trixie_${target_lower}/${WS_NAME}"
+
+          # +------- Building using Dockerfile.unified (located in HEAR_FC repository) -------+
+          # Notes:
+          # - The build option --target builds only up to the `artifacts` stage in `Dockerfile.unified`. It holds nothing except the files we copy
+          #   into it which are:
+          #      - install/
+          #      - the 3 FC XML files.
+          #      - /verified marker.
+          # - instead of the old way (--load) which takes the finished image and loads it into the runner local Docker daemon
+          #   which based on the build logs it causes extra ~6 min we will use a new way (--target/--output) which writes files straight
+          #   into a folder on the runner. No image is created and nothing is loaded.
+          # - since we are using the (--target/--output) way, there is no need to `docker create` or `docker cp` anymore.
+          # - `EXPORT_DIR` is `upm_extracted_files_ros2_trixie_rpi/HEAR_FC`. The artifact upload then uploads that folder.
+          #    Then the workflow downloads and finds the workspace at `artifacts/HEAR_FC/HEAR_FC`. That matches the old path, so UPM still works unchanged.
+          # - For debugging: since no image to inspect after a run. If we want to debug the container, we have to build it locally or with another target.
+          # - Build directory files are gone. The exported folder has only what gets packaged, so build/, log/ and other source are no longer uploaded.
+          #   This was intended, and it is also why the artifact is smaller.
           docker buildx build . \
             --builder="$docker_builder" \
             --platform "$build_platform" \
             --file Dockerfile.unified \
-            --cache-from type=registry,ref="$CACHE_REF" \
-            --cache-to type=registry,ref="$CACHE_REF",mode=max \
-            -t "leaf_fc_ros2_trixie_${target_lower}:latest" \
-            --load \
+            "${BUILD_CACHE_ARGS[@]}" \
+            --target artifacts \
+            --output "type=local,dest=$EXPORT_DIR" \
             --secret id=GITHUB_ID,env=triggering_actor \
             --secret id=GITHUB_TOKEN,env=TOKEN \
-            --build-arg BASE_IMAGE="${{ inputs.base_image || 'debian:trixie' }}" \
+            --build-arg BASE_IMAGE="${{ inputs.base_image || env.TRIXIE_BASE_IMAGE }}" \
             --build-arg ROS2_APT_URL="${{ inputs.ros2_apt_url }}" \
             --build-arg TARGET="${{ matrix.target }}" \
             --build-arg TARGET_RPI=ON \
@@ -130,77 +221,54 @@ jobs:
 
           docker buildx ls
 
-      - name: Verify the image is trixie, ROS 2 works, and the FC binaries exist
-        env:
-          target_lower: ${{ matrix.target_lower }}
-        run: |
-          set -e
-          # --entrypoint bash is required: entrypoint_unified.sh reads $1 as a workspace
-          # path and $2 as a command, so it does NOT exec the passed argv.
-          docker run --rm --platform linux/arm64 \
-            --entrypoint bash "leaf_fc_ros2_trixie_${target_lower}:latest" -c '
-            set -e
-            . /etc/os-release
-            echo "OS: $ID $VERSION_CODENAME  arch: $(dpkg --print-architecture)"
-            [ "$ID" = debian ] || { echo "::error::image is $ID, expected debian"; exit 1; }
-            [ "$VERSION_CODENAME" = trixie ] || { echo "::error::image is $VERSION_CODENAME, expected trixie"; exit 1; }
-            source /opt/ros/jazzy/setup.bash   # -u is deliberately not enabled: setup.bash reads unset vars
-            [ "$ROS_DISTRO" = jazzy ] || { echo "::error::ROS_DISTRO=$ROS_DISTRO, expected jazzy"; exit 1; }
-            # Guard against a colcon run that "succeeds" but installs nothing, which would
-            # otherwise be packaged and published as an empty .deb. Searched, not a fixed
-            # path, so colcon layout changes cannot turn this into a false failure.
-            INST="/home/'"${IMAGE_USERNAME}"'/'"${WS_NAME}"'/install"
-            for b in px4_mav_opti_flight_controller_onboard_mission betaflight_racer; do
-              find "$INST" -type f -name "$b" -perm -u+x | grep -q . \
-                || { echo "::error::FC binary not installed anywhere under $INST: $b"; exit 1; }
-            done
-            echo "✅ debian/trixie + ROS 2 jazzy + FC binaries confirmed"'
 
-      - name: Extract the ROS2 install folder from the image
-        env:
-          target_lower: ${{ matrix.target_lower }}
-        run: |
-          set -e
-          CONTAINER_ID=$(docker create --platform linux/arm64 "leaf_fc_ros2_trixie_${target_lower}:latest")
-
-          rm -rf "extracted_files_ros2_trixie_${target_lower}" "upm_extracted_files_ros2_trixie_${target_lower}"
-          mkdir -p "extracted_files_ros2_trixie_${target_lower}"
-          mkdir -p "upm_extracted_files_ros2_trixie_${target_lower}/${WS_NAME}"
-
-          # install/ -> release asset; whole workspace -> UPM (its upm.yaml globs over it).
-          docker cp "$CONTAINER_ID:/home/${IMAGE_USERNAME}/${WS_NAME}/install" \
-            "./extracted_files_ros2_trixie_${target_lower}"
-          docker cp "$CONTAINER_ID:/home/${IMAGE_USERNAME}/${WS_NAME}" \
-            "./upm_extracted_files_ros2_trixie_${target_lower}/${WS_NAME}"
-
-          docker rm "$CONTAINER_ID"
-          ls -la "extracted_files_ros2_trixie_${target_lower}"
-          docker rmi "leaf_fc_ros2_trixie_${target_lower}:latest" || true
-
-      - name: Compress the install tree
-        env:
-          target_lower: ${{ matrix.target_lower }}
-        run: |
-          tar -czf "leaf_fc_rpi_os_${target_lower}.tar.gz" \
-            -C "extracted_files_ros2_trixie_${target_lower}" .
-          tar -tzf "leaf_fc_rpi_os_${target_lower}.tar.gz" | head -n 10
-
-      - name: Upload install tree as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: extracted_files_ros2_trixie_${{ matrix.target_lower }}
-          path: extracted_files_ros2_trixie_${{ matrix.target_lower }}
-          if-no-files-found: error
-
+      # pass the built workspace from the build job to the deploy job
       - name: Upload UPM workspace as artifact
+        id: upload-artifact
         uses: actions/upload-artifact@v4
         with:
           name: upm_extracted_files_ros2_trixie_${{ matrix.target_lower }}
           path: upm_extracted_files_ros2_trixie_${{ matrix.target_lower }}
           if-no-files-found: error
+          # Kept for 1 day only: the deploy job downloads it minutes later, and the build output should not stay downloadable.
+          retention-days: 1
+          # A re-run of a failed job uploads this name again, so replace it instead of failing.
+          overwrite: true
 
-      - name: Attach the install tree to the release
+      - name: Compress the install directory tree as TARBALL
+        id: create-tarball
         if: github.event_name == 'release'
+        continue-on-error: true
+        # The tarball is not critical, but a hang here would hold the whole job.
+        timeout-minutes: 15
+        env:
+          target_lower: ${{ matrix.target_lower }}
+        run: |
+          # EXPORT_DIR ends with $WS_NAME, and the Docker output adds another /$WS_NAME for the workspace.
+          # Example for rpi: upm_extracted_files_ros2_trixie_rpi/HEAR_FC/HEAR_FC
+          WORKSPACE_DIR="upm_extracted_files_ros2_trixie_${target_lower}/${WS_NAME}/${WS_NAME}"
+
+          TARBALL="leaf_fc_rpi_os_${target_lower}.tar.gz"
+          
+          # use pigz as a default compressor, fallback to gzip if it's not available.
+          COMPRESSOR=gzip
+          if command -v pigz >/dev/null 2>&1; then
+            COMPRESSOR=pigz
+          fi
+          
+          echo "Compressing with $COMPRESSOR"
+          tar --use-compress-program="$COMPRESSOR" -cf "$TARBALL" -C "$WORKSPACE_DIR" ./install
+
+          # verification:
+          # No pipe here: without pipefail it would hide a broken tarball.
+          tar -tzf "$TARBALL" > "$RUNNER_TEMP/tarball_files.txt"
+          head -n 10 "$RUNNER_TEMP/tarball_files.txt"
+
+      - name: Attach the TARBALL to the release
+        id: attach-tarball
+        # continue-on-error makes success() true even when the tarball failed, so check the real outcome.
+        # On manual runs the tarball step is skipped, so this step is skipped too.
+        if: steps.create-tarball.outcome == 'success'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.event.release.tag_name }}
@@ -208,9 +276,50 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
+      - name: Warn that there is no tarball
+        if: steps.create-tarball.outcome == 'failure'
+        run: echo "::warning::The tarball was not created, so the release has no tarball attached"
+
+      # +------- Docker Layers Caching To GHCR -------+
+      # - Rebuild the Dockerfile only through its `deps` stage then uploading these reusable Docker layers to the shared GHCR cache.
+      # - The layers are cached to `ghcr.io/droneleaf/software-stack:leaf-fc-rpi-os-deps-cache`
+      # - Why through `deps` stage only? Because only base, ros2 and deps are worth caching, the later layers change every release.
+      # - Note: The build args must match the build above, or the cache keys differ and everything will be built again from scratch.
+      - name: Refresh the dependency cache
+        id: refresh-deps-cache
+        if: inputs.base_image == '' && inputs.ros2_apt_url == ''   # skip refreshing the shared cache when we customize either input.
+        continue-on-error: true # continue-on-error does not cover a hang.
+        timeout-minutes: 15
+        working-directory: ${{ env.SOURCE_DIR }}
+        env:
+          docker_builder: trixieBuilder
+          build_platform: linux/arm64
+          CACHE_REF: ghcr.io/droneleaf/software-stack:leaf-fc-rpi-os-deps-cache
+        run: |
+          set -e
+          if [[ "$FORCE_DEPS_REFRESH" == "true" ]]; then
+            echo "Exporting the freshly built dependency stages without importing the old GHCR cache."
+            CACHE_IMPORT_ARGS=()
+          else
+            CACHE_IMPORT_ARGS=(--cache-from "type=registry,ref=$CACHE_REF")
+          fi
+          docker buildx build . \
+            --builder="$docker_builder" \
+            --platform "$build_platform" \
+            --file Dockerfile.unified \
+            --target deps \
+            "${CACHE_IMPORT_ARGS[@]}" \
+            --cache-to type=registry,ref="$CACHE_REF",mode=max \
+            --build-arg BASE_IMAGE="$TRIXIE_BASE_IMAGE" \
+            --build-arg ROS2_APT_URL="" \
+            --build-arg USERNAME="$IMAGE_USERNAME"
+
   deploy:
     needs: [build]
-    if: github.event_name == 'workflow_dispatch' || (contains(github.event.release.name, 'ros2') && contains(github.event.release.name, 'rpi_os') && !contains(github.ref_name, 'dev'))
+    # Release events only: manual runs build and never publish.
+    # The release name (title) should include both patterns 'ros2' and 'rpi_os' regardless the ordering.
+    # The branch name (tag) shouldn't include the pattern 'dev'
+    if: github.event_name == 'release' && contains(github.event.release.name, 'ros2') && contains(github.event.release.name, 'rpi_os') && !contains(github.ref_name, 'dev')
     runs-on: ubuntu-24.04
 
     strategy:
@@ -241,31 +350,19 @@ jobs:
           role-session-name: GitHub-Action-Role
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Extract version from release
+      - name: Get VERSION from the build job
+        env:
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
         run: |
-          BRANCH_NAME="${{ github.ref_name }}"
-          COMMIT_SHA="${{ github.sha }}"
-          git fetch --tags || true
-          TAG_NAME=$(git tag --points-at "$COMMIT_SHA" | head -1)
-          VERSION=""
-
-          if [ -n "$TAG_NAME" ]; then
-            VERSION=$(echo "$TAG_NAME" | sed -E 's/^(v|release-|rel-)?([0-9]+\.[0-9]+\.[0-9]+).*$/\2/')
+          if [ -z "$RELEASE_VERSION" ]; then
+            echo "::error::The build job gave no version, refusing to deploy"
+            exit 1
           fi
-          if [ -z "$VERSION" ] && [[ "$BRANCH_NAME" =~ release|rel ]]; then
-            VERSION=$(echo "$BRANCH_NAME" | sed -E 's/.*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
-          fi
-          if [ -z "$VERSION" ]; then
-            LATEST=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name // empty')
-            [ -n "$LATEST" ] && VERSION=$(echo "$LATEST" | sed -E 's/^(v|release-|rel-)?([0-9]+\.[0-9]+\.[0-9]+).*$/\2/')
-          fi
-          [ -z "$VERSION" ] && VERSION="0.0.$(date +%Y%m%d)"
-          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || VERSION="0.0.1"
-
-          echo "✅ Version: $VERSION"
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "✅ Version: $RELEASE_VERSION"
+          echo "VERSION=$RELEASE_VERSION" >> "$GITHUB_ENV"
 
       - name: Download the UPM workspace artifact
+        id: download-artifact
         uses: actions/download-artifact@v4
         with:
           name: upm_extracted_files_ros2_trixie_${{ matrix.target_lower }}
@@ -273,9 +370,27 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify downloads
+        id: verify-artifact
         run: |
           test -d ./artifacts || { echo "::error::no artifacts downloaded"; exit 1; }
           ls -la ./artifacts/
+
+          # UPM does not fail on missing files, it would publish an empty package.
+          WORKSPACE_DIR="./artifacts/${WS_NAME}/${WS_NAME}"
+          for binary in px4_mav_opti_flight_controller_onboard_mission betaflight_racer; do
+            if ! ls "$WORKSPACE_DIR"/install/*/lib/flight_controller/"$binary"; then
+              echo "::error::$binary is missing from the downloaded workspace"
+              exit 1
+            fi
+          done
+          if ! ls "$WORKSPACE_DIR"/install/*/share/flight_controller/launch/launch/*.py; then
+            echo "::error::launch files are missing from the downloaded workspace"
+            exit 1
+          fi
+          if ! ls "$WORKSPACE_DIR"/src/HEAR_FC/Flight_controller/*.xml; then
+            echo "::error::XML files are missing from the downloaded workspace"
+            exit 1
+          fi
 
       - name: Setup GPG for package signing
         env:
@@ -373,17 +488,14 @@ jobs:
           test -n "$PACKAGE_ABSOLUTE_PATH" || { echo "::error::built .deb not found"; exit 1; }
           echo "DEB_PATH=$PACKAGE_ABSOLUTE_PATH" >> "$GITHUB_ENV"
 
-          # Deploy to repo.droneleaf.io suspended for now.
-          # The artifact of this workflow and leaf_fc_ros2.yml's one
-          # share the exact same "leaf-fc-ros2" package identity, so
-          # whichever workflow's finishs last and pushes last wins.
-          # A trixie device with both sources configured may install the wrong/noble build
-          # The leaf-fc-ros2 is disabled on repo.droneleaf.io until a real per-suite design exists on it.
-          # Left commented(not deleted) intentionally to re-enable only alongside that fix.
-          # curl -v -u "${registry_username}:${registry_password}" \
-          #   -H "Content-Type: multipart/form-data" \
-          #   --data-binary "@${PACKAGE_ABSOLUTE_PATH}" \
-          #   http://18.158.175.125:80/repository/apt/ -H "Host: repo.droneleaf.io"
+          # +----- Publish to repo.droneleaf.io -----+
+          # --fail-with-body: an HTTP error (401, 403, 500) must fail the step.
+          # No -v: it would print the Authorization header into the public log.
+          curl --fail-with-body -sS --connect-timeout 30 --max-time 1800 \
+            -u "${registry_username}:${registry_password}" \
+            -H "Content-Type: multipart/form-data" \
+            --data-binary "@${PACKAGE_ABSOLUTE_PATH}" \
+            http://18.158.175.125:80/repository/apt-trixie/ -H "Host: repo.droneleaf.io"
 
       - name: Upload the .deb as an artifact
         uses: actions/upload-artifact@v4
@@ -391,6 +503,10 @@ jobs:
           name: leaf_fc_rpi_os_${{ matrix.target_lower }}_deb
           path: ${{ env.DEB_PATH }}
           if-no-files-found: error
+          retention-days: 1
+          # Kept for 1 day only: the package is published to apt anyway.
+          # A re-run of a failed job uploads this name again, so replace it instead of failing.
+          overwrite: true
 
   # ========================================================================================
   # Dev build/deploy — mirrors leaf_fc_ros2.yml's build-dev/deploy-dev, but for the
@@ -404,7 +520,7 @@ jobs:
 
   build-dev:
     if: contains(github.event.release.name, 'ros2') && contains(github.event.release.name, 'rpi_os') && contains(github.ref_name, 'dev')
-    runs-on: Linux_ARM64_16core
+    runs-on: ${{ vars.LEAF_FC_ARM_RUNNER || 'Linux_ARM64_16core' }}
 
     strategy:
       matrix:
@@ -456,25 +572,34 @@ jobs:
           target_lower: ${{ matrix.target_lower }}
           docker_builder: trixieBuilder_dev
           build_platform: linux/arm64
-          CACHE_REF: ghcr.io/droneleaf/software-stack:leaf-fc-rpi-os-cache
+          CACHE_REF: ghcr.io/droneleaf/software-stack:leaf-fc-rpi-os-deps-cache
         run: |
           set -e
           export BUILD_TIMESTAMP=$(date +%s)
 
+          if [[ "$FORCE_DEPS_REFRESH" == "true" ]]; then
+            echo "Forcing fresh base, ros2, and deps stages; skipping GHCR cache import."
+            BUILD_CACHE_ARGS=(--no-cache-filter base --no-cache-filter ros2 --no-cache-filter deps)
+          else
+            BUILD_CACHE_ARGS=(--cache-from "type=registry,ref=$CACHE_REF")
+          fi
+
           docker buildx create --name "$docker_builder" --driver=docker-container --use \
             || docker buildx use "$docker_builder"
+
+          EXPORT_DIR="${GITHUB_WORKSPACE}/upm_extracted_files_ros2_trixie_${target_lower}_dev/${WS_NAME}"
 
           docker buildx build . \
             --builder="$docker_builder" \
             --platform "$build_platform" \
             --file Dockerfile.unified \
-            --cache-from type=registry,ref="$CACHE_REF" \
-            --cache-to type=registry,ref="$CACHE_REF",mode=max \
-            -t "leaf_fc_ros2_trixie_${target_lower}_dev:latest" \
-            --load \
+            "${BUILD_CACHE_ARGS[@]}" \
+            --target artifacts \
+            --output "type=local,dest=$EXPORT_DIR" \
             --secret id=GITHUB_ID,env=triggering_actor \
             --secret id=GITHUB_TOKEN,env=TOKEN \
-            --build-arg BASE_IMAGE="debian:trixie" \
+            --build-arg BASE_IMAGE="$TRIXIE_BASE_IMAGE" \
+            --build-arg ROS2_APT_URL="" \
             --build-arg TARGET="${{ matrix.target }}" \
             --build-arg TARGET_RPI=ON \
             --build-arg USERNAME="${IMAGE_USERNAME}" \
@@ -485,28 +610,37 @@ jobs:
 
           docker buildx ls
 
-      - name: Extract the ROS2 install folder from the image (dev)
-        env:
-          target_lower: ${{ matrix.target_lower }}
-        run: |
-          set -e
-          CONTAINER_ID=$(docker create --platform linux/arm64 "leaf_fc_ros2_trixie_${target_lower}_dev:latest")
-
-          rm -rf "upm_extracted_files_ros2_trixie_${target_lower}_dev"
-          mkdir -p "upm_extracted_files_ros2_trixie_${target_lower}_dev/${WS_NAME}"
-
-          docker cp "$CONTAINER_ID:/home/${IMAGE_USERNAME}/${WS_NAME}" \
-            "./upm_extracted_files_ros2_trixie_${target_lower}_dev/${WS_NAME}"
-
-          docker rm "$CONTAINER_ID"
-          docker rmi "leaf_fc_ros2_trixie_${target_lower}_dev:latest" || true
-
       - name: Upload UPM workspace as artifact (dev)
         uses: actions/upload-artifact@v4
         with:
           name: upm_extracted_files_ros2_trixie_${{ matrix.target_lower }}_dev
           path: upm_extracted_files_ros2_trixie_${{ matrix.target_lower }}_dev
           if-no-files-found: error
+          # Kept for 1 day only: the deploy job downloads it minutes later, and the build output should not stay downloadable.
+          retention-days: 1
+          # A re-run of a failed job uploads this name again, so replace it instead of failing.
+          overwrite: true
+
+      - name: Refresh dependency cache after forced dev build
+        if: env.FORCE_DEPS_REFRESH == 'true'
+        continue-on-error: true
+        timeout-minutes: 15
+        working-directory: ${{ env.SOURCE_DIR }}
+        env:
+          docker_builder: trixieBuilder_dev
+          build_platform: linux/arm64
+          CACHE_REF: ghcr.io/droneleaf/software-stack:leaf-fc-rpi-os-deps-cache
+        run: |
+          set -e
+          docker buildx build . \
+            --builder="$docker_builder" \
+            --platform "$build_platform" \
+            --file Dockerfile.unified \
+            --target deps \
+            --cache-to type=registry,ref="$CACHE_REF",mode=max \
+            --build-arg BASE_IMAGE="$TRIXIE_BASE_IMAGE" \
+            --build-arg ROS2_APT_URL="" \
+            --build-arg USERNAME="$IMAGE_USERNAME"
 
   deploy-dev:
     needs: [build-dev]
@@ -575,6 +709,23 @@ jobs:
         run: |
           test -d ./artifacts || { echo "::error::no artifacts downloaded"; exit 1; }
           ls -la ./artifacts/
+
+          # UPM does not fail on missing files, it would publish a package without them.
+          WORKSPACE_DIR="./artifacts/${WS_NAME}/${WS_NAME}"
+          for binary in px4_mav_opti_flight_controller_onboard_mission betaflight_racer; do
+            if ! ls "$WORKSPACE_DIR"/install/*/lib/flight_controller/"$binary"; then
+              echo "::error::$binary is missing from the downloaded workspace"
+              exit 1
+            fi
+          done
+          if ! ls "$WORKSPACE_DIR"/install/*/share/flight_controller/launch/launch/*.py; then
+            echo "::error::launch files are missing from the downloaded workspace"
+            exit 1
+          fi
+          if ! ls "$WORKSPACE_DIR"/src/HEAR_FC/Flight_controller/*.xml; then
+            echo "::error::XML files are missing from the downloaded workspace"
+            exit 1
+          fi
 
       - name: Setup GPG for package signing
         env:
@@ -695,7 +846,7 @@ jobs:
             sed -i "s|${target_upm_publish_name}\.home_manifest|${target_upm_publish_name}-dev.home_manifest|g" "$REPACK_DIR/DEBIAN/postinst"
           fi
 
-          dpkg-deb --build "$REPACK_DIR" "$DEV_DEB"
+          dpkg-deb -Zzstd -z9 --build "$REPACK_DIR" "$DEV_DEB"
           echo "✅ Repacked: $DEV_DEB"
 
           PACKAGE_ABSOLUTE_PATH=$(find "$(pwd)" -name "$DEV_DEB_NAME" | head -1)
@@ -706,10 +857,13 @@ jobs:
           # Dev builds are throwaway test artifacts; apt.droneleaf.io has no "-dev"
           # channel, and the stable trixie suite there shouldn't see them.
           echo -e "\n\nDeploying trixie dev package: $PACKAGE_ABSOLUTE_PATH to repo.droneleaf.io...\n\n"
-          curl -v -u "${registry_username}:${registry_password}" \
+          # --fail-with-body: an HTTP error (401, 403, 500) must fail the step.
+          # No -v: it would print the Authorization header into the public log.
+          curl --fail-with-body -sS --connect-timeout 30 --max-time 1800 \
+            -u "${registry_username}:${registry_password}" \
             -H "Content-Type: multipart/form-data" \
             --data-binary "@${PACKAGE_ABSOLUTE_PATH}" \
-            http://18.158.175.125:80/repository/apt/ -H "Host: repo.droneleaf.io"
+            http://18.158.175.125:80/repository/apt-trixie/ -H "Host: repo.droneleaf.io"
 
       - name: Upload the -dev .deb as an artifact
         uses: actions/upload-artifact@v4
@@ -717,6 +871,10 @@ jobs:
           name: leaf_fc_rpi_os_${{ matrix.target_lower }}_dev_deb
           path: ${{ env.DEB_PATH }}
           if-no-files-found: error
+          # Kept for 1 day only: the package is published to apt anyway.
+          retention-days: 1
+          # A re-run of a failed job uploads this name again, so replace it instead of failing.
+          overwrite: true
 
   cleanup-dev-release:
     needs: [deploy-dev]
@@ -726,6 +884,30 @@ jobs:
       contents: write
 
     steps:
+      # This workflow can finish before its siblings. If the release is deleted while
+      # they still attach assets to it, they create the tag again on main.
+      - name: Wait for the other workflows of this release
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
+          THIS_RUN: ${{ github.run_id }}
+        run: |
+          # 120 checks, 30 seconds apart: wait up to 1 hour.
+          for attempt in $(seq 1 120); do
+            UNFINISHED=$(gh run list --repo "$REPO" --branch "$TAG_NAME" --event release --limit 100 \
+              --json databaseId,status --jq '.[] | select(.status != "completed") | .databaseId')
+            OTHERS=$(echo "$UNFINISHED" | grep -vx "$THIS_RUN" || true)
+            if [ -z "$OTHERS" ]; then
+              echo "No other workflow is using this release"
+              exit 0
+            fi
+            echo "Check $attempt: waiting for runs" $OTHERS
+            sleep 30
+          done
+          echo "::error::Other workflows still use $TAG_NAME, not deleting the release"
+          exit 1
+
       - name: Delete dev release and tag so the name can be reused
         env:
           GH_TOKEN: ${{ secrets.TOKEN }}
