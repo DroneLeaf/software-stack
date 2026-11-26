@@ -65,7 +65,7 @@ env:
 jobs:
   build:
     if: github.event_name == 'workflow_dispatch' || (contains(github.event.release.name, 'ros2') && contains(github.event.release.name, 'rpi_os') && !contains(github.ref_name, 'dev'))
-    runs-on: Linux_ARM64_16core
+    runs-on: ${{ vars.LEAF_FC_ARM_RUNNER || 'Linux_ARM64_16core' }}
 
     strategy:
       matrix:
@@ -520,7 +520,7 @@ jobs:
 
   build-dev:
     if: contains(github.event.release.name, 'ros2') && contains(github.event.release.name, 'rpi_os') && contains(github.ref_name, 'dev')
-    runs-on: Linux_ARM64_16core
+    runs-on: ${{ vars.LEAF_FC_ARM_RUNNER || 'Linux_ARM64_16core' }}
 
     strategy:
       matrix:
